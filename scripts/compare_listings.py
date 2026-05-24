@@ -213,7 +213,7 @@ def compare_listings(args):
         print("🏠 房源对比表")
         print("=" * 75)
 
-        headers = ["对比项"] + [format_value(l.get("name", l.get("id", "")), 18) for l in selected]
+        headers = ["对比项"] + [format_value(l.get("community", l.get("id", "")), 18) for l in selected]
 
         def price_breakdown(l):
             down = l.get("price_wan", 0) * 0.3
@@ -222,6 +222,7 @@ def compare_listings(args):
             return f"{l.get('price_wan', 0)}万(首{down:.0f}/月供{monthly:.0f})"
 
         rows = [
+            ["🏘️ 小区"] + [format_value(l.get("community", "-"), 15) for l in selected],
             ["💰 总价(首付/月供)"] + [price_breakdown(l) for l in selected],
             ["💵 单价"] + [f"{l.get('unit_price', 0)}元/㎡" if l.get("unit_price") else "-" for l in selected],
             ["🏢 户型"] + [format_value(l.get("room_type", "-")) for l in selected],

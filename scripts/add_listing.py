@@ -33,6 +33,7 @@ def add_listing(args):
 
     listing = {
         "id": new_id,
+        "community": args.community or "",      # 小区名
         "name": args.name,
         "address": args.address or "",
         "price_wan": args.price,           # 总价（万元）
@@ -84,7 +85,8 @@ def add_listing(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="添加新房源")
-    parser.add_argument("--name", required=True, help="房源名称/小区")
+    parser.add_argument("--community", help="小区名称")
+    parser.add_argument("--name", required=True, help="房源名称/备注")
     parser.add_argument("--price", type=float, required=True, help="总价（万元）")
     parser.add_argument("--address", help="详细地址")
     parser.add_argument("--unit-price", type=float, help="单价（元/㎡）")

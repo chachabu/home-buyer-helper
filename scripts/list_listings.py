@@ -52,17 +52,17 @@ def list_listings(args):
         return
 
     # 列表视图
-    print(f"\n{'ID':<7}{'名称':<16}{'总价(万)':<10}{'单价':<10}{'户型':<10}{'面积':<8}{'房龄':<7}{'状态':<8}")
-    print("-" * 82)
+    print(f"\n{'ID':<7}{'小区':<14}{'名称':<12}{'总价(万)':<10}{'单价':<10}{'户型':<10}{'面积':<8}{'状态':<8}")
+    print("-" * 85)
     for l in filtered:
-        name = l.get("name", "")[:14]
+        name = l.get("name", "")[:11]
+        community = l.get("community", "")[:12]
         price = f"{l.get('price_wan', 0)}万"
         unit = f"{l.get('unit_price', 0)}元" if l.get("unit_price") else "-"
         room = l.get("room_type", "")[:8]
         area = f"{l.get('area', 0)}㎡"
-        age = str(l.get("building_age", "")) if l.get("building_age") else "-"
         status = l.get("status", "")[:6]
-        print(f"{l.get('id', ''):<7}{name:<16}{price:<10}{unit:<10}{room:<10}{area:<8}{age:<7}{status:<8}")
+        print(f"{l.get('id', ''):<7}{community:<14}{name:<12}{price:<10}{unit:<10}{room:<10}{area:<8}{status:<8}")
 
     print(f"\n共 {len(filtered)} 条记录")
 
