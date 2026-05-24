@@ -52,17 +52,17 @@ def list_listings(args):
         return
 
     # 列表视图
-    print(f"\n{'小区':<14}{'名称':<14}{'总价(万)':<10}{'单价':<10}{'户型':<10}{'面积':<8}{'状态':<8}")
-    print("-" * 78)
+    print(f"\n{'小区':<12}{'名称':<12}{'总价(万)':<10}{'面积':<7}{'地铁':<7}{'我的分':<7}{'状态':<8}")
+    print("-" * 65)
     for l in filtered:
-        name = l.get("name", "")[:13]
-        community = l.get("community", "")[:12]
+        name = l.get("name", "")[:11]
+        community = l.get("community", "")[:10]
         price = f"{l.get('price_wan', 0)}万"
-        unit = f"{l.get('unit_price', 0)}元" if l.get("unit_price") else "-"
-        room = l.get("room_type", "")[:8]
         area = f"{l.get('area', 0)}㎡"
+        metro = f"{l.get('metro_distance', '')}m" if l.get("metro_distance") else "-"
+        score = f"{l.get('my_score', '-')}/10" if l.get("my_score") else "-"
         status = l.get("status", "")[:6]
-        print(f"{community:<14}{name:<14}{price:<10}{unit:<10}{room:<10}{area:<8}{status:<8}")
+        print(f"{community:<12}{name:<12}{price:<10}{area:<7}{metro:<7}{score:<7}{status:<8}")
 
     print(f"\n共 {len(filtered)} 条记录")
 
@@ -99,6 +99,8 @@ def list_listings(args):
         if listing.get("school_notes"):
             print(f"学位情况:      {listing.get('school_notes')}")
         print(f"交通:          {listing.get('transport') or '-'}")
+        if listing.get("metro_distance"):
+            print(f"距地铁:        {listing['metro_distance']}米")
         print(f"周边配套:      {listing.get('facilities') or '-'}")
         if listing.get("mortgage_balance"):
             print(f"剩余贷款:      {listing.get('mortgage_balance')} 万元")
@@ -108,6 +110,9 @@ def list_listings(args):
         print(f"联系方式:      {listing.get('contact') or '-'}")
         print(f"优点:          {listing.get('pros') or '-'}")
         print(f"缺点:          {listing.get('cons') or '-'}")
+        if listing.get("my_score"):
+            stars = "⭐" * int(listing["my_score"])
+            print(f"🏆 我的评分:    {listing['my_score']}/10  {stars}")
         print(f"房源链接:      {listing.get('url') or '-'}")
         print(f"状态:          {listing.get('status')}")
         print(f"录入时间:      {listing.get('created_at', '')[:10]}")

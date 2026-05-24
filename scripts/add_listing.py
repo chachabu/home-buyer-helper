@@ -57,6 +57,7 @@ def add_listing(args):
         "school_notes": args.school_notes or "",             # 学位占用情况
         "transport": args.transport or "",
         "facilities": args.facilities or "",
+        "metro_distance": args.metro_distance or "",  # 最近地铁站距离（米）
         "mortgage_balance": args.mortgage_balance or 0,      # 剩余贷款（万）
         "tax_estimate": args.tax_estimate or 0,              # 税费估算（万）
         "agent_fee_rate": args.agent_fee_rate or 0.02,       # 中介费率
@@ -64,6 +65,7 @@ def add_listing(args):
         "contact": args.contact or "",
         "pros": args.pros or "",
         "cons": args.cons or "",
+        "my_score": args.my_score or 0,          # 个人评分（1-10）
         "url": args.url or "",
         "images": args.images or "",
         "status": "待看房",
@@ -118,9 +120,11 @@ if __name__ == "__main__":
     parser.add_argument("--agent-fee", type=float, help="中介费（万元）")
     parser.add_argument("--transport", help="交通情况")
     parser.add_argument("--facilities", help="周边配套")
+    parser.add_argument("--metro-distance", type=int, help="最近地铁站距离（米）")
     parser.add_argument("--contact", help="中介/房东联系方式")
     parser.add_argument("--pros", help="优点")
     parser.add_argument("--cons", help="缺点")
+    parser.add_argument("--my-score", type=float, help="个人评分（1-10）")
     parser.add_argument("--url", help="房源链接")
     parser.add_argument("--images", help="房间图片链接（多个用逗号分隔）")
     args = parser.parse_args()

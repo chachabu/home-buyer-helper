@@ -234,10 +234,12 @@ def compare_listings(args):
             ["📋 产权"] + [format_value(f"{l.get('property_type','')} {l.get('house_type','')} {'满五唯一' if l.get('is_full5_unique') else ''}") for l in selected],
             ["🏫 学区"] + [format_value(l.get("school_district", "-"), 18) for l in selected],
             ["🚇 交通"] + [format_value(l.get("transport", "-"), 25) for l in selected],
+            ["📍 距地铁"] + [f"{l.get('metro_distance', '')}米" if l.get("metro_distance") else "-" for l in selected],
             ["🏪 配套"] + [format_value(l.get("facilities", "-"), 25) for l in selected],
             ["💳 税费估算"] + [f"{l.get('tax_estimate', 0)}万" for l in selected],
             ["🔗 链接"] + [format_value(l.get("url", "-"), 25) for l in selected],
             ["⭐ 看房评分"] + [f"{l.get('viewing_score')}分{' 🟢' if l.get('viewing_consider') else ''}" for l in selected],
+            ["🏆 我的评分"] + [f"{l.get('my_score', '-')}/10 {'⭐'*int(l.get('my_score',0))}" if l.get('my_score') else "-" for l in selected],
             ["📊 状态"] + [format_value(l.get("status", "-")) for l in selected],
         ]
 
