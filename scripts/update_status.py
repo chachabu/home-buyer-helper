@@ -9,7 +9,7 @@ import os
 import argparse
 from datetime import datetime
 
-DATA_DIR = os.path.expanduser("~/.openclaw/workspace/home-buyer-data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 DATA_FILE = os.path.join(DATA_DIR, "listings.json")
 
 VALID_STATUS = ["待看房", "已看房", "有意向", "已放弃", "已签约", "已过户"]
@@ -41,6 +41,11 @@ def update_status(args):
         listing["status_notes"] = args.notes
 
     save_listings(listings)
+    try:
+        from _git_push import git_push
+        git_push(f"auto: data update")
+    except Exception:
+        pass
     print(f"✅ 房源 [{listing.get('name')}] 状态已更新: {old_status} → {args.status}")
     if args.notes:
         print(f"   备注: {args.notes}")

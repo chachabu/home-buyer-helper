@@ -16,7 +16,7 @@ import argparse
 import csv
 from datetime import datetime
 
-DATA_DIR = os.path.expanduser("~/.openclaw/workspace/home-buyer-data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 DATA_FILE = os.path.join(DATA_DIR, "listings.json")
 
 def ensure_data_dir():

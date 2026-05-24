@@ -9,7 +9,7 @@ import os
 import argparse
 from datetime import datetime
 
-DATA_DIR = os.path.expanduser("~/.openclaw/workspace/home-buyer-data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 DATA_FILE = os.path.join(DATA_DIR, "listings.json")
 
 def ensure_data_dir():
@@ -72,6 +72,11 @@ def add_listing(args):
     }
     listings.append(listing)
     save_listings(listings)
+    try:
+        from _git_push import git_push
+        git_push(f"feat: 新增房源 {args.name} ({new_id})")
+    except Exception:
+        pass
     print(f"✅ 房源已记录！ID: {new_id}")
     print(f"   名称: {args.name}")
     print(f"   总价: {args.price}万元")

@@ -9,7 +9,7 @@ import os
 import argparse
 from datetime import datetime
 
-DATA_DIR = os.path.expanduser("~/.openclaw/workspace/home-buyer-data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 LISTINGS_FILE = os.path.join(DATA_DIR, "listings.json")
 VIEWINGS_FILE = os.path.join(DATA_DIR, "viewings.json")
 
@@ -66,6 +66,11 @@ def add_viewing(args):
 
     viewings.append(viewing)
     save_viewings(viewings)
+    try:
+        from _git_push import git_push
+        git_push(f"auto: data update")
+    except Exception:
+        pass
 
     # 更新房源状态
     listing["status"] = "已看房"

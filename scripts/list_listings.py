@@ -8,7 +8,7 @@ import json
 import os
 import argparse
 
-DATA_DIR = os.path.expanduser("~/.openclaw/workspace/home-buyer-data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 LISTINGS_FILE = os.path.join(DATA_DIR, "listings.json")
 VIEWINGS_FILE = os.path.join(DATA_DIR, "viewings.json")
 
@@ -52,17 +52,17 @@ def list_listings(args):
         return
 
     # 列表视图
-    print(f"\n{'ID':<7}{'小区':<14}{'名称':<12}{'总价(万)':<10}{'单价':<10}{'户型':<10}{'面积':<8}{'状态':<8}")
-    print("-" * 85)
+    print(f"\n{'小区':<14}{'名称':<14}{'总价(万)':<10}{'单价':<10}{'户型':<10}{'面积':<8}{'状态':<8}")
+    print("-" * 78)
     for l in filtered:
-        name = l.get("name", "")[:11]
+        name = l.get("name", "")[:13]
         community = l.get("community", "")[:12]
         price = f"{l.get('price_wan', 0)}万"
         unit = f"{l.get('unit_price', 0)}元" if l.get("unit_price") else "-"
         room = l.get("room_type", "")[:8]
         area = f"{l.get('area', 0)}㎡"
         status = l.get("status", "")[:6]
-        print(f"{l.get('id', ''):<7}{community:<14}{name:<12}{price:<10}{unit:<10}{room:<10}{area:<8}{status:<8}")
+        print(f"{community:<14}{name:<14}{price:<10}{unit:<10}{room:<10}{area:<8}{status:<8}")
 
     print(f"\n共 {len(filtered)} 条记录")
 

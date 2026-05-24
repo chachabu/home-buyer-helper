@@ -21,7 +21,7 @@ from urllib.parse import quote
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-DATA_DIR = os.path.expanduser("~/.openclaw/workspace/home-buyer-data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 DATA_FILE = os.path.join(DATA_DIR, "listings.json")
 
 def load_listings():

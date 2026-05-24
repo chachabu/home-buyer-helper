@@ -9,7 +9,7 @@ import os
 import argparse
 import re
 
-DATA_DIR = os.path.expanduser("~/.openclaw/workspace/home-buyer-data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 LISTINGS_FILE = os.path.join(DATA_DIR, "listings.json")
 VIEWINGS_FILE = os.path.join(DATA_DIR, "viewings.json")
 
