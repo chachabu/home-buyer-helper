@@ -12,12 +12,11 @@
     "python": ">=3.9",
     "openclaw": ">=2025.0"
   },
-  "dataDir": "~/.openclaw/workspace/home-buyer-data",
+  "dataDir": "data",
   "scripts": [
     "scripts/add_listing.py",
     "scripts/update_status.py",
     "scripts/list_listings.py",
-    "scripts/get_listing.py",
     "scripts/recommend_listings.py",
     "scripts/add_viewing.py",
     "scripts/calculate_budget.py",

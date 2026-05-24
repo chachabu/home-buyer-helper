@@ -137,26 +137,40 @@ git clone git@github.com:chachabu/home-buyer-helper.git ~/.openclaw/skills/home-
 
 ### 数据存储
 
-房源数据自动保存到 `~/.openclaw/workspace/home-buyer-data/`：
+数据与脚本同仓库，自动纳入 git 版本管理：
 
 ```
-home-buyer-data/
-├── listings.json   # 房源数据
-└── viewings.json   # 看房记录
+home-buyer-helper/
+├── data/
+│   ├── listings.json   # 房源数据
+│   └── viewings.json   # 看房记录
+└── scripts/
 ```
 
 ### 一行命令搞定常见操作
 
 ```bash
-# 录入房源
+# 录入新房源
 python3 scripts/add_listing.py \
-  --name "你的目标小区" \
-  --price <总价> \
-  --room-type "<户型>" \
-  --area <面积> \
-  --is-full5-unique
+  --community "目标小区" \
+  --name "备注别名（如：满五唯一/精装修）" \
+  --price <总价万元> \
+  --room-type "<户型 如 2室1厅>" \
+  --area <面积㎡> \
+  --year-built <建成年份> \
+  --building-age <房龄> \
+  --decoration <装修情况> \
+  --has-elevator <有/否> \
+  --school-district "<学区>" \
+  --transport "<交通描述>" \
+  --metro-distance <距地铁米数> \
+  --tax-estimate <税费估算万元> \
+  --agent-fee-rate <中介费率 如 0.02> \
+  --my-score <个人评分1-10> \
+  --url "<房源链接>" \
+  --pros "<优点>" --cons "<缺点>"
 
-# 列出全部
+# 列出全部房源（含小区/总价/面积/地铁/评分/链接）
 python3 scripts/list_listings.py
 
 # 按条件筛选
@@ -164,6 +178,9 @@ python3 scripts/list_listings.py \
   --min-price <最低价> \
   --max-price <最高价> \
   --room-type "<户型关键字>"
+
+# 看单个房源详情
+python3 scripts/list_listings.py --id <ID>
 
 # 算月供
 python3 scripts/calculate_budget.py \
@@ -193,20 +210,23 @@ home-buyer-helper/
 ├── README.md             # 本文件
 ├── references/
 │   └── pitfall-guide.md  # 买房避坑指南
+├── data/                 # 房源 & 看房数据（git 版本管理）
+│   ├── listings.json     # 房源数据
+│   └── viewings.json     # 看房记录
 └── scripts/              # 功能脚本（Python 3.9+，纯标准库）
-    ├── add_listing.py        # 添加新房源
-    ├── update_status.py      # 更新房源状态
-    ├── list_listings.py      # 列出/筛选房源
-    ├── get_listing.py        # 查看房源详情
+    ├── add_listing.py        # 添加新房源（自动 git push）
+    ├── update_status.py      # 更新房源状态（自动 git push）
+    ├── add_viewing.py        # 记录看房（自动 git push）
+    ├── list_listings.py      # 列出/筛选/详情
     ├── recommend_listings.py # 智能推荐
-    ├── add_viewing.py        # 记录看房评分
     ├── calculate_budget.py   # 预算 & 月供计算
     ├── compare_listings.py   # 房源对比表
     ├── import_listings.py    # 批量导入 CSV/Excel
     ├── parse_url.py          # 网页链接解析
     ├── parse_image.py        # 图片 OCR 识别
     ├── crawl_listings.py     # 网站自动抓取
-    └── crawl_interactive.py  # 交互式抓取（支持登录场景）
+    ├── crawl_interactive.py  # 交互式抓取（支持登录场景）
+    └── _git_push.py          # 内部工具：自动 git add+commit+push
 ```
 
 ---
