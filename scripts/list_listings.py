@@ -52,17 +52,18 @@ def list_listings(args):
         return
 
     # 列表视图
-    print(f"\n{'小区':<12}{'名称':<12}{'总价(万)':<10}{'面积':<7}{'地铁':<7}{'我的分':<7}{'状态':<8}")
-    print("-" * 65)
+    print(f"\n{'小区':<10}{'名称':<12}{'总价(万)':<8}{'面积':<7}{'地铁':<6}{'我的分':<6}  {'状态':<8} {'链接'}")
+    print("-" * 80)
     for l in filtered:
         name = l.get("name", "")[:11]
-        community = l.get("community", "")[:10]
+        community = l.get("community", "")[:9]
         price = f"{l.get('price_wan', 0)}万"
         area = f"{l.get('area', 0)}㎡"
         metro = f"{l.get('metro_distance', '')}m" if l.get("metro_distance") else "-"
         score = f"{l.get('my_score', '-')}/10" if l.get("my_score") else "-"
+        url = l.get("url", "-")
         status = l.get("status", "")[:6]
-        print(f"{community:<12}{name:<12}{price:<10}{area:<7}{metro:<7}{score:<7}{status:<8}")
+        print(f"{community:<10}{name:<12}{price:<8}{area:<7}{metro:<6}{score:<6}  {status:<8} {url}")
 
     print(f"\n共 {len(filtered)} 条记录")
 
