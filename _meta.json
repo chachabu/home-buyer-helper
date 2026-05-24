@@ -1,0 +1,31 @@
+{
+  "name": "home-buyer-helper",
+  "displayName": "买房助手",
+  "slug": "home-buyer-helper",
+  "description": "买房全流程助手：房源记录、智能推荐、看房评分、预算月供计算、对比表格、避坑指南、批量导入、网页解析、图片OCR、网站抓取",
+  "version": "1.0.0",
+  "publishedAt": 1748081400000,
+  "author": "jyxc",
+  "homepage": "https://clawhub.ai/jyxc/home-buyer-helper",
+  "license": "MIT",
+  "requirements": {
+    "python": ">=3.9",
+    "openclaw": ">=2025.0"
+  },
+  "dataDir": "~/.openclaw/workspace/home-buyer-data",
+  "scripts": [
+    "scripts/add_listing.py",
+    "scripts/update_status.py",
+    "scripts/list_listings.py",
+    "scripts/get_listing.py",
+    "scripts/recommend_listings.py",
+    "scripts/add_viewing.py",
+    "scripts/calculate_budget.py",
+    "scripts/compare_listings.py",
+    "scripts/import_listings.py",
+    "scripts/parse_url.py",
+    "scripts/parse_image.py",
+    "scripts/crawl_listings.py",
+    "scripts/crawl_interactive.py"
+  ]
+}
