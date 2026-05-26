@@ -54,10 +54,14 @@ def add_listing(args):
         "parking_price": args.parking_price or 0,            # 车位价格（万）
         "has_elevator": args.has_elevator or "",
         "school_district": args.school_district or "",
+        "school_tier": args.school_tier or "",
         "school_notes": args.school_notes or "",             # 学位占用情况
         "transport": args.transport or "",
         "facilities": args.facilities or "",
+        "nearest_metro": args.nearest_metro or "",            # 最近地铁站
         "metro_distance": args.metro_distance or "",  # 最近地铁站距离（米）
+        "monthly_rent": args.monthly_rent or 0,        # 参考月租（元/月）
+        "rent_source": args.rent_source or "",         # 租金来源
         "mortgage_balance": args.mortgage_balance or 0,      # 剩余贷款（万）
         "tax_estimate": args.tax_estimate or 0,              # 税费估算（万）
         "agent_fee_rate": args.agent_fee_rate or 0.02,       # 中介费率
@@ -86,6 +90,10 @@ def add_listing(args):
         print(f"   户型: {args.room_type}")
     if args.area:
         print(f"   面积: {args.area}㎡")
+    if args.monthly_rent:
+        print(f"   参考月租: {args.monthly_rent}元/月")
+    if args.metro_distance:
+        print(f"   距地铁: {args.metro_distance}米")
     if args.url:
         print(f"   链接: {args.url}")
     return new_id
@@ -113,6 +121,7 @@ if __name__ == "__main__":
     parser.add_argument("--parking-price", type=float, help="车位价格（万元）")
     parser.add_argument("--has-elevator", help="是否有电梯")
     parser.add_argument("--school-district", help="学区/对口学校")
+    parser.add_argument("--school-tier", choices=["none", "normal", "good", "premium"], help="学区等级（仅推荐参考）")
     parser.add_argument("--school-notes", help="学位情况（如：未占用/锁定至2030）")
     parser.add_argument("--mortgage-balance", type=float, help="剩余贷款（万元）")
     parser.add_argument("--tax-estimate", type=float, help="税费估算（万元）")
@@ -120,7 +129,10 @@ if __name__ == "__main__":
     parser.add_argument("--agent-fee", type=float, help="中介费（万元）")
     parser.add_argument("--transport", help="交通情况")
     parser.add_argument("--facilities", help="周边配套")
+    parser.add_argument("--nearest-metro", help="最近地铁站")
     parser.add_argument("--metro-distance", type=int, help="最近地铁站距离（米）")
+    parser.add_argument("--monthly-rent", type=float, help="参考月租（元/月）")
+    parser.add_argument("--rent-source", help="租金来源（如：贝壳租房/链家租房/手动估算）")
     parser.add_argument("--contact", help="中介/房东联系方式")
     parser.add_argument("--pros", help="优点")
     parser.add_argument("--cons", help="缺点")

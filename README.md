@@ -164,15 +164,19 @@ python3 scripts/add_listing.py \
   --decoration <装修情况> \
   --has-elevator <有/否> \
   --school-district "<学区>" \
+  --school-tier normal \
   --transport "<交通描述>" \
+  --nearest-metro "<最近地铁站>" \
   --metro-distance <距地铁米数> \
+  --monthly-rent <参考月租元> \
+  --rent-source "<租金来源>" \
   --tax-estimate <税费估算万元> \
   --agent-fee-rate <中介费率 如 0.02> \
   --my-score <个人评分1-10> \
   --url "<房源链接>" \
   --pros "<优点>" --cons "<缺点>"
 
-# 列出全部房源（含小区/总价/面积/地铁/评分/链接）
+# 列出全部房源（含小区/总价/月租/租售比/地铁/链接）
 python3 scripts/list_listings.py
 
 # 按条件筛选
@@ -194,11 +198,27 @@ python3 scripts/calculate_budget.py \
 # 对比房源
 python3 scripts/compare_listings.py --ids <房源ID1> <房源ID2> <房源ID3>
 
-# 智能推荐
+# 智能推荐：默认 rental 模式，预算是硬过滤，不参与评分
 python3 scripts/recommend_listings.py \
-  --max-price <预算> \
-  --room-type "<户型>" \
-  --min-area <最低面积>
+  --budget-max <预算> \
+  --target-monthly-rent 5000 \
+  --target-rent-yield 2.0 \
+  --strong-rent-yield 2.5 \
+  --max-metro-distance 800
+
+# 调整权重和阈值：所有评分参数都可在执行时覆盖
+python3 scripts/recommend_listings.py \
+  --budget-max 500 \
+  --weight-rent 35 \
+  --weight-metro 35 \
+  --weight-rental-fit 12 \
+  --weight-liquidity 8 \
+  --weight-condition 5 \
+  --weight-school 5 \
+  --target-monthly-rent 5500 \
+  --target-rent-yield 2.2 \
+  --metro-strong-distance 500 \
+  --metro-good-distance 800
 
 # 贝壳/链家：人在回路抓取（推荐）
 python3 scripts/crawl_interactive.py \
