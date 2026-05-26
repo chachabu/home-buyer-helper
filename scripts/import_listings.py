@@ -6,8 +6,9 @@
 CSV必需字段：name,price_wan
 可选字段：address,room_type,area,inner_area,floor,total_floors,orientation,year_built,building_age,
           decoration,property_type,house_type,is_full5_unique,has_parking,has_elevator,
-          school_district,school_notes,transport,facilities,mortgage_balance,
-          tax_estimate,agent_fee_rate,agent_fee,contact,pros,cons,source,url
+          school_district,school_tier,school_notes,transport,facilities,nearest_metro,
+          metro_distance,monthly_rent,rent_source,mortgage_balance,tax_estimate,
+          agent_fee_rate,agent_fee,contact,pros,cons,source,url
 """
 
 import json
@@ -64,9 +65,14 @@ def import_from_csv(file_path, listings):
                 "parking_price": float(row.get("parking_price", 0)) if row.get("parking_price") else 0,
                 "has_elevator": row.get("has_elevator", "").strip(),
                 "school_district": row.get("school_district", "").strip(),
+                "school_tier": row.get("school_tier", "").strip(),
                 "school_notes": row.get("school_notes", "").strip(),
                 "transport": row.get("transport", "").strip(),
                 "facilities": row.get("facilities", "").strip(),
+                "nearest_metro": row.get("nearest_metro", "").strip(),
+                "metro_distance": float(row.get("metro_distance", 0)) if row.get("metro_distance") else 0,
+                "monthly_rent": float(row.get("monthly_rent", 0)) if row.get("monthly_rent") else 0,
+                "rent_source": row.get("rent_source", "").strip(),
                 "mortgage_balance": float(row.get("mortgage_balance", 0)) if row.get("mortgage_balance") else 0,
                 "tax_estimate": float(row.get("tax_estimate", 0)) if row.get("tax_estimate") else 0,
                 "agent_fee_rate": float(row.get("agent_fee_rate", 0.02)) if row.get("agent_fee_rate") else 0.02,
@@ -121,9 +127,14 @@ def import_from_excel(file_path, listings):
                 "parking_price": safe_float(row.get("parking_price")),
                 "has_elevator": str(row.get("has_elevator", "") or "").strip(),
                 "school_district": str(row.get("school_district", "") or "").strip(),
+                "school_tier": str(row.get("school_tier", "") or "").strip(),
                 "school_notes": str(row.get("school_notes", "") or "").strip(),
                 "transport": str(row.get("transport", "") or "").strip(),
                 "facilities": str(row.get("facilities", "") or "").strip(),
+                "nearest_metro": str(row.get("nearest_metro", "") or "").strip(),
+                "metro_distance": safe_float(row.get("metro_distance")),
+                "monthly_rent": safe_float(row.get("monthly_rent")),
+                "rent_source": str(row.get("rent_source", "") or "").strip(),
                 "mortgage_balance": safe_float(row.get("mortgage_balance")),
                 "tax_estimate": safe_float(row.get("tax_estimate")),
                 "agent_fee_rate": safe_float(row.get("agent_fee_rate"), 0.02),

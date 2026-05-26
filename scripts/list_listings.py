@@ -52,18 +52,20 @@ def list_listings(args):
         return
 
     # 列表视图
-    print(f"\n{'小区':<10}{'名称':<12}{'总价(万)':<8}{'面积':<7}{'地铁':<6}{'我的分':<6}  {'状态':<8} {'链接'}")
-    print("-" * 80)
+    print(f"\n{'小区':<10}{'名称':<12}{'总价(万)':<8}{'月租':<8}{'租售比':<7}{'地铁':<6}{'状态':<8} {'链接'}")
+    print("-" * 96)
     for l in filtered:
         name = l.get("name", "")[:11]
         community = l.get("community", "")[:9]
         price = f"{l.get('price_wan', 0)}万"
-        area = f"{l.get('area', 0)}㎡"
+        rent = f"{l.get('monthly_rent', 0)}元" if l.get("monthly_rent") else "-"
+        rent_yield = "-"
+        if l.get("monthly_rent") and l.get("price_wan"):
+            rent_yield = f"{float(l['monthly_rent']) * 12 / (float(l['price_wan']) * 10000) * 100:.2f}%"
         metro = f"{l.get('metro_distance', '')}m" if l.get("metro_distance") else "-"
-        score = f"{l.get('my_score', '-')}/10" if l.get("my_score") else "-"
         url = l.get("url", "-")
         status = l.get("status", "")[:6]
-        print(f"{community:<10}{name:<12}{price:<8}{area:<7}{metro:<6}{score:<6}  {status:<8} {url}")
+        print(f"{community:<10}{name:<12}{price:<8}{rent:<8}{rent_yield:<7}{metro:<6}{status:<8} {url}")
 
     print(f"\n共 {len(filtered)} 条记录")
 
@@ -97,11 +99,21 @@ def list_listings(args):
             print(f"车位价格:      {listing.get('parking_price')} 万元")
         print(f"电梯:          {listing.get('has_elevator') or '-'}")
         print(f"学区:          {listing.get('school_district') or '-'}")
+        print(f"学区等级:      {listing.get('school_tier') or '-'}")
         if listing.get("school_notes"):
             print(f"学位情况:      {listing.get('school_notes')}")
         print(f"交通:          {listing.get('transport') or '-'}")
+        if listing.get("nearest_metro"):
+            print(f"最近地铁:      {listing.get('nearest_metro')}")
         if listing.get("metro_distance"):
             print(f"距地铁:        {listing['metro_distance']}米")
+        if listing.get("monthly_rent"):
+            rent_yield = "-"
+            if listing.get("price_wan"):
+                rent_yield = f"{float(listing['monthly_rent']) * 12 / (float(listing['price_wan']) * 10000) * 100:.2f}%"
+            print(f"参考月租:      {listing.get('monthly_rent')} 元/月（年化租售比 {rent_yield}）")
+        if listing.get("rent_source"):
+            print(f"租金来源:      {listing.get('rent_source')}")
         print(f"周边配套:      {listing.get('facilities') or '-'}")
         if listing.get("mortgage_balance"):
             print(f"剩余贷款:      {listing.get('mortgage_balance')} 万元")
