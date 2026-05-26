@@ -1,2 +1,7 @@
 # 本地数据不推送
 data/
+browser-profiles/
+captures/
+*.local.html
+__pycache__/
+*.pyc

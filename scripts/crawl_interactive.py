@@ -1,139 +1,141 @@
 #!/usr/bin/env python3
 """
-交互式网页抓取（买房版）
-当网站需要登录时，打开浏览器并提示用户扫码/验证码登录
-用法: python crawl_interactive.py --platform 58 --city 北京 --area 朝阳区
+人在回路网页抓取。
+
+有 Playwright 时：打开真实浏览器，用户手动登录/填验证码/调筛选，回车后读取当前页面解析。
+无 Playwright 时：打开默认浏览器，用户保存 HTML 文件后脚本解析该 HTML。
 """
 
-import json
-import os
-import re
-import ssl
 import argparse
-import time
-import urllib.request
-from datetime import datetime
-from urllib.parse import quote
+import os
+import webbrowser
 
-ssl._create_default_https_context = ssl._create_unverified_context
+from listing_parsers import (
+    DATA_DIR,
+    append_unique_listings,
+    assign_preview_ids,
+    build_beike_url,
+    load_listings,
+    parse_beike_listings_html,
+    resolve_city_code,
+    save_listings,
+)
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
-DATA_FILE = os.path.join(DATA_DIR, "listings.json")
-
-def load_listings():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def save_listings(listings):
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(listings, f, ensure_ascii=False, indent=2)
-
-def fetch_page(url, headers=None):
-    try:
-        h = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
-        if headers:
-            h.update(headers)
-        req = urllib.request.Request(url, headers=h)
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return resp.read().decode('utf-8', errors='replace')
-    except Exception as e:
-        print(f"  获取失败: {e}")
-        return None
-
-def clean(text):
-    return re.sub(r'<[^>]+>', ' ', text).strip()
 
 def crawl_interactive(args):
-    city_codes = {'北京':'bj','上海':'sh','广州':'gz','深圳':'sz','杭州':'hz','成都':'cd'}
-    code = city_codes.get(args.city, 'bj')
-
-    if args.platform in ('贝壳', '链家'):
-        area_part = f"/{quote(args.area.encode('utf-8'))}" if args.area else ""
-        budget_filter = ""
-        if args.budget_min and args.budget_max:
-            budget_filter = f"p{args.budget_min}ep{args.budget_max}"
-        elif args.budget_max:
-            budget_filter = f"p{args.budget_max}"
-        url = f"https://{code}.ke.com/ershoufang{area_part}/{budget_filter}/"
-        print(f"\n🔍 贝壳找房 - {args.city} {args.area or '全城'}")
+    if args.platform in ("贝壳", "链家"):
+        code = resolve_city_code(args.city)
+        url = build_beike_url(args.city, args.area, args.budget_min, args.budget_max)
+        print(f"\n🔍 {args.platform} - {args.city} {args.area or '全城'}")
         print(f"   URL: {url}")
 
-        print("\n💡 贝壳/链家一般不需要登录即可抓取，直接尝试...")
-        html = fetch_page(url)
-        if html and '登录' in html[:500] and ('验证码' in html or '验证' in html):
-            print("⚠️ 检测到需要验证码，建议在浏览器手动打开后重试")
-        if html:
-            _parse_and_save(html, args.platform)
+        if args.html:
+            with open(os.path.expanduser(args.html), "r", encoding="utf-8", errors="replace") as f:
+                html = f.read()
         else:
-            print("❌ 抓取失败，可尝试手动在浏览器打开后用 parse_url.py 解析")
+            html = _load_html_with_human_browser(url, args)
+        if not html:
+            print("❌ 未获得页面 HTML")
+            return
+        source = "贝壳找房" if args.platform == "贝壳" else "链家"
+        listings = parse_beike_listings_html(html, city_code=code, source=source, limit=args.limit)
+        _preview_and_save(listings, args.save)
+        return
 
-    elif args.platform in ('58', '58同城'):
-        area_enc = quote((args.area or args.city).encode('utf-8'))
-        url = f"https://{code}.58.com/ershoufang/?key={area_enc}"
-        print(f"\n🔍 58同城 - {args.city} {args.area or '全城'}")
-        print(f"   URL: {url}")
-        print("\n💡 58同城反爬较强，建议：")
-        print("   方法1: 在浏览器打开上述链接 → 搜索 → 手动复制房源信息")
-        print("   方法2: 保存搜索结果页面为 HTML → 用本脚本解析")
-        print("   方法3: 用 parse_url.py 逐条解析具体房源链接")
+    url = _fallback_url(args)
+    print(f"\n🔍 {args.platform} - {args.city} {args.area or '全城'}")
+    print(f"   URL: {url}")
+    print("\n💡 该平台暂未做专用解析。建议在浏览器完成搜索后保存 HTML，再用 crawl_listings.py --html 解析。")
+    webbrowser.open(url)
 
-        try:
-            import webbrowser
-            webbrowser.open(url)
-            print(f"\n🌐 已为你打开浏览器: {url}")
-            print("   在浏览器中登录/搜索完成后，按回车继续抓取...")
-            input()
-            html = fetch_page(url)
-            if html:
-                _parse_and_save(html, "58同城")
+
+def _fallback_url(args):
+    if args.platform in ("58", "58同城"):
+        city_map = {"北京": "bj", "上海": "sh", "广州": "gz", "深圳": "sz", "成都": "cd"}
+        return f"https://{city_map.get(args.city, 'bj')}.58.com/ershoufang/"
+    if args.platform == "安居客":
+        city_map = {"北京": "beijing", "上海": "shanghai", "广州": "guangzhou", "深圳": "shenzhen"}
+        return f"https://{city_map.get(args.city, 'beijing')}.fang.anjuke.com/"
+    return "https://www.ke.com/"
+
+
+def _load_html_with_human_browser(url, args):
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("\n💡 当前未安装 Playwright，已退回到手动 HTML 模式。")
+        print("   安装后可直接在脚本打开的浏览器里登录/填验证码，然后自动解析：")
+        print("   python3 -m pip install playwright && python3 -m playwright install chromium")
+        webbrowser.open(url)
+        html_path = input("\n请在浏览器完成登录/验证码后保存网页 HTML，并输入 HTML 文件路径: ").strip()
+        if not html_path:
+            return ""
+        with open(os.path.expanduser(html_path), "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+
+    profile_dir = os.path.expanduser(args.profile_dir or os.path.join(DATA_DIR, "browser-profile"))
+    os.makedirs(profile_dir, exist_ok=True)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch_persistent_context(
+                profile_dir,
+                headless=False,
+                viewport={"width": 1440, "height": 1000},
+                locale="zh-CN",
+            )
+            page = browser.pages[0] if browser.pages else browser.new_page()
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            print("\n🌐 已打开浏览器。请在浏览器里完成登录/验证码/筛选调整。")
+            input("完成后回到终端按回车，脚本会读取当前页面并解析房源...")
+            html = page.content()
+            if args.keep_browser:
+                print("浏览器将保持打开，方便继续调整筛选。")
             else:
-                print("❌ 抓取失败")
-        except Exception as e:
-            print(f"浏览器打开失败: {e}")
+                browser.close()
+            return html
+    except Exception as e:
+        print(f"\n⚠️ Playwright 浏览器启动失败: {e}")
+        print("   可运行：python3 -m playwright install chromium")
+        webbrowser.open(url)
+        html_path = input("也可以保存网页 HTML 后输入路径继续解析: ").strip()
+        if not html_path:
+            return ""
+        with open(os.path.expanduser(html_path), "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
 
-def _parse_and_save(html, source):
-    listings = []
-    blocks = re.findall(r'<li[^>]*class="clear"[^>]*>(.*?)</li>', html, re.S)
-    for block in blocks[:20]:
-        try:
-            title_m = re.search(r'title="([^"]{4,80})"', block)
-            price_m = re.search(r'(\d+(?:\.\d+)?)\s*<span[^>]*>万', block)
-            unit_m = re.search(r'(\d{3,6})\s*<span[^>]*>元/㎡', block)
-            room_m = re.search(r'(\d+)室(\d+)厅', block)
-            area_m = re.search(r'(\d+(?:\.\d+)?)\s*㎡', block)
-            if title_m:
-                listings.append({
-                    "id": f"H{len(listings)+1:03d}",
-                    "name": title_m.group(1)[:40],
-                    "price_wan": float(price_m.group(1)) if price_m else 0,
-                    "unit_price": int(unit_m.group(1)) if unit_m else 0,
-                    "room_type": f"{room_m.group(1)}室{room_m.group(2)}厅" if room_m else "",
-                    "area": float(area_m.group(1)) if area_m else 0,
-                    "source": source,
-                    "status": "待看房",
-                    "created_at": datetime.now().isoformat(),
-                })
-        except Exception:
-            continue
 
-    if listings:
+def _preview_and_save(listings, should_save):
+    if not listings:
+        print("\n⚠️ 未能解析出房源数据，可能页面结构已变化，或当前页面不是列表页")
+        return
+
+    preview = assign_preview_ids(listings)
+    print(f"\n✅ 解析到 {len(preview)} 条房源")
+    for item in preview[:10]:
+        label = item.get("community") or item.get("name", "")[:8]
+        print(f"  [{item['id']}] {label:8} {item.get('price_wan', 0)}万 {item.get('room_type', '')} {item.get('area', 0)}㎡ {item.get('url', '')}")
+    if len(preview) > 10:
+        print(f"  ... 还有 {len(preview) - 10} 条")
+
+    if should_save:
         existing = load_listings()
-        existing.extend(listings)
+        added = append_unique_listings(existing, listings)
         save_listings(existing)
-        print(f"\n✅ 抓取到 {len(listings)} 条房源，已保存")
-    else:
-        print("\n⚠️ 未能解析出房源数据，可能页面结构已变化")
+        skipped = len(listings) - len(added)
+        print(f"\n✅ 已保存 {len(added)} 条新房源，跳过 {skipped} 条重复房源")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="交互式网页抓取（买房版）")
-    parser.add_argument("--platform", choices=['贝壳','链家','58','58同城','安居客'], required=True)
+    parser = argparse.ArgumentParser(description="人在回路网页抓取（买房版）")
+    parser.add_argument("--platform", choices=["贝壳", "链家", "58", "58同城", "安居客"], required=True)
     parser.add_argument("--city", default="北京")
     parser.add_argument("--area")
     parser.add_argument("--budget-min", type=float)
     parser.add_argument("--budget-max", type=float)
+    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--save", action="store_true")
+    parser.add_argument("--html", help="直接解析已保存的列表页 HTML")
+    parser.add_argument("--profile-dir", help="Playwright 浏览器用户数据目录，默认 data/browser-profile")
+    parser.add_argument("--keep-browser", action="store_true", help="解析后不关闭 Playwright 浏览器")
     args = parser.parse_args()
     crawl_interactive(args)

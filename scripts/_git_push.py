@@ -4,7 +4,7 @@ import subprocess
 import os
 import sys
 
-SKILL_DIR = os.path.dirname(os.path.abspath(__file__))
+SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def git_push(msg="auto: 房源数据更新"):
     try:

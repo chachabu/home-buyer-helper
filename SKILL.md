@@ -224,6 +224,12 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - 抓取数量
 ```
 
+**贝壳/链家验证码处理优先级：**
+- 优先使用 `scripts/crawl_interactive.py`，由用户在真实浏览器中登录、扫码或填写验证码。
+- 用户完成验证后回到终端按回车，脚本读取当前页面 DOM 并解析房源列表。
+- 如果本机未安装 Playwright，则打开默认浏览器，让用户保存列表页 HTML，再用 `--html` 解析。
+- 不建议绕过验证码或高频请求；抓取失败时应提示用户使用人在回路流程。
+
 房源数据默认存储在 `data/listings.json`
 看房记录存储在 `data/viewings.json`
 
@@ -237,10 +243,10 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - `scripts/calculate_budget.py` - 计算购房预算与月供
 - `scripts/compare_listings.py` - 生成对比表（含小区 / 距地铁 / 我的评分列）
 - `scripts/import_listings.py` - 批量导入房源（CSV/Excel）
-- `scripts/parse_url.py` - 从网页链接解析房源
+- `scripts/parse_url.py` - 从网页链接解析房源；遇到验证码时建议改用交互式抓取
 - `scripts/parse_image.py` - 从图片识别房源信息（OCR）
-- `scripts/crawl_listings.py` - 从买房网站抓取房源
-- `scripts/crawl_interactive.py` - 交互式网页抓取（需要登录时提示用户）
+- `scripts/crawl_listings.py` - 从买房网站抓取房源；支持 `--html` 解析已保存列表页
+- `scripts/crawl_interactive.py` - 人在回路网页抓取（浏览器登录/验证码后自动解析）
 
 ## 工作流
 
@@ -301,5 +307,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 
 ### 网站抓取
 1. 询问目标平台、城市、区域、预算
-2. 调用 `scripts/crawl_listings.py` 或 `scripts/crawl_interactive.py`
-3. 显示抓取结果并确认保存
+2. 如果是贝壳/链家，优先调用 `scripts/crawl_interactive.py --platform 贝壳 --city <城市> --area <区域> --budget-min <最低总价> --budget-max <最高总价> --save`
+3. 如果用户已经保存了页面 HTML，调用 `scripts/crawl_listings.py --platform 贝壳 --city <城市> --html <文件路径> --save`
+4. 只有在不需要登录/验证码时才直接调用 `scripts/crawl_listings.py`
+5. 显示抓取结果并确认保存
