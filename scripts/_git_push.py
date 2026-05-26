@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""自动 git add + commit + push（买房助手）"""
+"""自动提交并推送非忽略文件改动（买房助手）。"""
 import subprocess
 import os
 import sys

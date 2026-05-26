@@ -139,7 +139,7 @@ git clone git@github.com:chachabu/home-buyer-helper.git ~/.openclaw/skills/home-
 
 ### 数据存储
 
-数据与脚本同仓库，自动纳入 git 版本管理：
+数据默认写入本地 `data/`，该目录已在 `.gitignore` 中，不会推送到远端仓库：
 
 ```
 home-buyer-helper/
@@ -229,13 +229,13 @@ home-buyer-helper/
 ├── README.md             # 本文件
 ├── references/
 │   └── pitfall-guide.md  # 买房避坑指南
-├── data/                 # 房源 & 看房数据（git 版本管理）
+├── data/                 # 房源 & 看房数据（本地保存，默认不提交）
 │   ├── listings.json     # 房源数据
 │   └── viewings.json     # 看房记录
 └── scripts/              # 功能脚本（Python 3.9+，纯标准库）
-    ├── add_listing.py        # 添加新房源（自动 git push）
-    ├── update_status.py      # 更新房源状态（自动 git push）
-    ├── add_viewing.py        # 记录看房（自动 git push）
+    ├── add_listing.py        # 添加新房源
+    ├── update_status.py      # 更新房源状态
+    ├── add_viewing.py        # 记录看房
     ├── list_listings.py      # 列出/筛选/详情
     ├── recommend_listings.py # 智能推荐
     ├── calculate_budget.py   # 预算 & 月供计算
@@ -245,7 +245,7 @@ home-buyer-helper/
     ├── parse_image.py        # 图片 OCR 识别
     ├── crawl_listings.py     # 网站自动抓取
     ├── crawl_interactive.py  # 交互式抓取（支持登录场景）
-    └── _git_push.py          # 内部工具：自动 git add+commit+push
+    └── _git_push.py          # 内部工具：提交非忽略文件改动
 ```
 
 ---
