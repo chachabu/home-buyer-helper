@@ -16,6 +16,7 @@ from listing_parsers import (
     assign_preview_ids,
     build_beike_url,
     load_listings,
+    mark_ordinary_residence_listings,
     mark_near_subway_listings,
     parse_beike_listings_html,
     resolve_city_code,
@@ -35,6 +36,7 @@ def crawl_interactive(args):
                 args.budget_max,
                 page=page,
                 near_subway=args.near_subway,
+                ordinary_residence=args.ordinary_residence,
             )
             for page in range(1, page_count + 1)
         ]
@@ -61,6 +63,8 @@ def crawl_interactive(args):
             page_listings = parse_beike_listings_html(html, city_code=code, source=source, limit=remaining)
             if args.near_subway:
                 mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
+            if args.ordinary_residence:
+                mark_ordinary_residence_listings(page_listings)
             if page_count > 1:
                 print(f"   第 {index}/{page_count} 页解析: {len(page_listings)} 条")
             listings.extend(page_listings)
@@ -187,6 +191,7 @@ if __name__ == "__main__":
     parser.add_argument("--budget-min", type=float)
     parser.add_argument("--budget-max", type=float)
     parser.add_argument("--near-subway", action="store_true", help="贝壳近地铁筛选（su1）")
+    parser.add_argument("--ordinary-residence", action="store_true", help="贝壳普通住宅筛选（sf1）")
     parser.add_argument("--pages", type=int, default=1, help="贝壳/链家列表页数，--limit 为总条数上限")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--save", action="store_true")

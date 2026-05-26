@@ -228,6 +228,7 @@ python3 scripts/crawl_interactive.py \
   --budget-min 300 \
   --budget-max 800 \
   --near-subway \
+  --ordinary-residence \
   --pages 2 \
   --limit 20 \
   --save

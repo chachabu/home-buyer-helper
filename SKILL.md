@@ -273,8 +273,8 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - `scripts/import_listings.py` - 批量导入房源（CSV/Excel）
 - `scripts/parse_url.py` - 从网页链接解析房源；遇到验证码时建议改用交互式抓取
 - `scripts/parse_image.py` - 从图片识别房源信息（OCR）
-- `scripts/crawl_listings.py` - 从买房网站抓取房源；支持 `--html` 解析已保存列表页，贝壳/链家支持 `--near-subway` 与 `--pages`
-- `scripts/crawl_interactive.py` - 人在回路网页抓取（浏览器登录/验证码后自动解析），贝壳/链家支持 `--near-subway` 与 `--pages`
+- `scripts/crawl_listings.py` - 从买房网站抓取房源；支持 `--html` 解析已保存列表页，贝壳/链家支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
+- `scripts/crawl_interactive.py` - 人在回路网页抓取（浏览器登录/验证码后自动解析），贝壳/链家支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
 
 ## 工作流
 
@@ -335,7 +335,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 
 ### 网站抓取
 1. 询问目标平台、城市、区域、预算
-2. 如果是贝壳/链家，优先调用 `scripts/crawl_interactive.py --platform 贝壳 --city <城市> --area <区域> --budget-min <最低总价> --budget-max <最高总价> --near-subway --pages <页数> --save`
+2. 如果是贝壳/链家，优先调用 `scripts/crawl_interactive.py --platform 贝壳 --city <城市> --area <区域> --budget-min <最低总价> --budget-max <最高总价> --near-subway --ordinary-residence --pages <页数> --save`
 3. 如果用户已经保存了页面 HTML，调用 `scripts/crawl_listings.py --platform 贝壳 --city <城市> --html <文件路径> --save`
 4. 只有在不需要登录/验证码时才直接调用 `scripts/crawl_listings.py`
 5. 显示抓取结果并确认保存

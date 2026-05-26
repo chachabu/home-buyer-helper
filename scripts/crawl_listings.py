@@ -18,6 +18,7 @@ from listing_parsers import (
     fetch_page,
     load_listings,
     looks_like_blocked_page,
+    mark_ordinary_residence_listings,
     mark_near_subway_listings,
     parse_beike_listings_html,
     parse_generic_html,
@@ -47,6 +48,7 @@ def crawl_ke(args):
             args.budget_max,
             page=page,
             near_subway=args.near_subway,
+            ordinary_residence=args.ordinary_residence,
         )
         prefix = f"第 {page}/{page_count} 页" if page_count > 1 else "抓取"
         print(f"  {prefix}: {url}")
@@ -61,6 +63,8 @@ def crawl_ke(args):
         page_listings = parse_beike_listings_html(html, city_code=code, source=source, limit=remaining)
         if args.near_subway:
             mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
+        if args.ordinary_residence:
+            mark_ordinary_residence_listings(page_listings)
         print(f"    解析: {len(page_listings)} 条")
         if not page_listings:
             break
@@ -124,6 +128,8 @@ def crawl_from_html(args):
             page_listings = parse_beike_listings_html(html, city_code=code, source=source, limit=remaining)
             if args.near_subway:
                 mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
+            if args.ordinary_residence:
+                mark_ordinary_residence_listings(page_listings)
             listings.extend(page_listings)
             continue
         info = parse_generic_html(html, html_path)
@@ -184,6 +190,7 @@ if __name__ == "__main__":
     parser.add_argument("--budget-min", type=float)
     parser.add_argument("--budget-max", type=float)
     parser.add_argument("--near-subway", action="store_true", help="贝壳近地铁筛选（su1）")
+    parser.add_argument("--ordinary-residence", action="store_true", help="贝壳普通住宅筛选（sf1）")
     parser.add_argument("--pages", type=int, default=1, help="贝壳/链家列表页数，--limit 为总条数上限")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--save", action="store_true")

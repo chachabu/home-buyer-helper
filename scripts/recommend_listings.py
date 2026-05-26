@@ -69,6 +69,14 @@ def is_near_subway(listing):
     return "近地铁" in text
 
 
+def is_commercial_like(listing):
+    text = " ".join(
+        str(listing.get(key, ""))
+        for key in ("community", "name", "property_type", "house_type")
+    )
+    return "商业类" in text or "商业办公" in text
+
+
 def passes_hard_filters(listing, args):
     price = as_float(listing.get("price_wan"))
     monthly_rent = as_float(listing.get("monthly_rent"))
@@ -90,6 +98,8 @@ def passes_hard_filters(listing, args):
             return False, "缺少地铁距离"
         if metro_distance > args.max_metro_distance:
             return False, f"距地铁{metro_distance:g}米超过上限{args.max_metro_distance:g}米"
+    if not args.include_commercial and is_commercial_like(listing):
+        return False, "商业类房源默认排除"
     return True, ""
 
 
@@ -368,6 +378,7 @@ def add_arguments(parser):
     parser.add_argument("--min-monthly-rent", type=float, help="最低月租（元），硬过滤；不填则只参与评分/标签")
     parser.add_argument("--min-rent-yield", type=float, help="最低年化租售比（%），硬过滤；不填则只参与评分/标签")
     parser.add_argument("--max-metro-distance", type=float, help="最大距地铁距离（米），硬过滤；不填则只参与评分")
+    parser.add_argument("--include-commercial", action="store_true", help="包含商业类房源；默认排除")
 
     # 默认权重总和 100，执行 skill 时可按需覆盖。
     parser.add_argument("--weight-rent", type=float, default=35, help="租金收益权重，默认35")

@@ -188,7 +188,15 @@ def resolve_beike_area_slug(city, area):
     return BEIKE_AREA_SLUGS.get(city, {}).get(area, "")
 
 
-def build_beike_url(city="北京", area=None, budget_min=None, budget_max=None, page=1, near_subway=False):
+def build_beike_url(
+    city="北京",
+    area=None,
+    budget_min=None,
+    budget_max=None,
+    page=1,
+    near_subway=False,
+    ordinary_residence=False,
+):
     code = resolve_city_code(city)
     parts = []
     area_slug = resolve_beike_area_slug(city, area)
@@ -205,6 +213,8 @@ def build_beike_url(city="北京", area=None, budget_min=None, budget_max=None, 
         filters.append(f"ep{max_token}")
     if near_subway:
         filters.append("su1")
+    if ordinary_residence:
+        filters.append("sf1")
     token = ""
     if page and page > 1:
         token += f"pg{page}"
@@ -221,6 +231,14 @@ def mark_near_subway_listings(listings, label="近地铁（贝壳筛选）"):
         transport = clean_text(listing.get("transport", ""))
         if label and label not in transport:
             listing["transport"] = f"{transport}；{label}" if transport else label
+    return listings
+
+
+def mark_ordinary_residence_listings(listings):
+    for listing in listings:
+        listing["ordinary_residence"] = True
+        if not listing.get("property_type"):
+            listing["property_type"] = "普通住宅"
     return listings
 
 
@@ -464,6 +482,9 @@ def merge_listing_metadata(existing, incoming):
     if incoming.get("near_subway") and not existing.get("near_subway"):
         existing["near_subway"] = True
         changed = True
+    if incoming.get("ordinary_residence") and not existing.get("ordinary_residence"):
+        existing["ordinary_residence"] = True
+        changed = True
 
     incoming_transport = clean_text(incoming.get("transport", ""))
     existing_transport = clean_text(existing.get("transport", ""))
@@ -471,7 +492,7 @@ def merge_listing_metadata(existing, incoming):
         existing["transport"] = f"{existing_transport}；{incoming_transport}" if existing_transport else incoming_transport
         changed = True
 
-    for key in ("nearest_metro", "metro_distance", "monthly_rent", "rent_source"):
+    for key in ("nearest_metro", "metro_distance", "monthly_rent", "rent_source", "property_type"):
         if incoming.get(key) and not existing.get(key):
             existing[key] = incoming[key]
             changed = True
