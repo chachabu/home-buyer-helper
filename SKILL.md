@@ -253,9 +253,10 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 ```
 
 **贝壳/链家验证码处理优先级：**
-- 优先使用 `scripts/crawl_interactive.py`，由用户在真实浏览器中登录、扫码或填写验证码。
-- 用户完成验证后回到终端按回车，脚本读取当前页面 DOM 并解析房源列表。
-- 如果本机未安装 Playwright，则打开默认浏览器，让用户保存列表页 HTML，再用 `--html` 解析。
+- 严格反爬场景优先让用户在系统 Chrome 中手动筛选、翻页、登录和过验证，然后调用 `scripts/crawl_interactive.py --current-chrome --save` 读取当前标签页。
+- URL 中包含 `su1` / `sf1` 时，`--current-chrome` 会自动标记近地铁 / 普通住宅；可额外传 `--budget-min` / `--budget-max` 作为本地价格保护。
+- 不要把自动翻页作为默认方案；贝壳页码 URL 容易触发极验。需要多页时，让用户手动点下一页，页面稳定后重复读取当前 Chrome 页。
+- 如果用户已经保存了列表页 HTML，再用 `--html` 解析。
 - 不建议绕过验证码或高频请求；抓取失败时应提示用户使用人在回路流程。
 
 房源数据默认存储在 `data/listings.json`
@@ -274,7 +275,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - `scripts/parse_url.py` - 从网页链接解析房源；遇到验证码时建议改用交互式抓取
 - `scripts/parse_image.py` - 从图片识别房源信息（OCR）
 - `scripts/crawl_listings.py` - 从买房网站抓取房源；支持 `--html` 解析已保存列表页，贝壳/链家支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
-- `scripts/crawl_interactive.py` - 人在回路网页抓取（浏览器登录/验证码后自动解析），贝壳/链家支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
+- `scripts/crawl_interactive.py` - 人在回路网页抓取；贝壳/链家严格反爬时优先用 `--current-chrome` 读取用户已手动筛选/翻页/过验证的当前页，也支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
 
 ## 工作流
 
@@ -335,7 +336,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 
 ### 网站抓取
 1. 询问目标平台、城市、区域、预算
-2. 如果是贝壳/链家，优先调用 `scripts/crawl_interactive.py --platform 贝壳 --city <城市> --area <区域> --budget-min <最低总价> --budget-max <最高总价> --near-subway --ordinary-residence --pages <页数> --save`
+2. 如果是贝壳/链家，优先让用户在系统 Chrome 中手动选好区域、价格、近地铁、普通住宅并翻到目标页，然后调用 `scripts/crawl_interactive.py --platform 贝壳 --city <城市> --budget-min <最低总价> --budget-max <最高总价> --current-chrome --save`
 3. 如果用户已经保存了页面 HTML，调用 `scripts/crawl_listings.py --platform 贝壳 --city <城市> --html <文件路径> --save`
 4. 只有在不需要登录/验证码时才直接调用 `scripts/crawl_listings.py`
 5. 显示抓取结果并确认保存

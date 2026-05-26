@@ -8,6 +8,9 @@
 
 import argparse
 import os
+import subprocess
+import tempfile
+import time
 import webbrowser
 
 from listing_parsers import (
@@ -27,43 +30,65 @@ from listing_parsers import (
 def crawl_interactive(args):
     if args.platform in ("贝壳", "链家"):
         code = resolve_city_code(args.city)
-        page_count = max(1, args.pages or 1)
-        urls = [
-            build_beike_url(
-                args.city,
-                args.area,
-                args.budget_min,
-                args.budget_max,
-                page=page,
-                near_subway=args.near_subway,
-                ordinary_residence=args.ordinary_residence,
-            )
-            for page in range(1, page_count + 1)
-        ]
-        print(f"\n🔍 {args.platform} - {args.city} {args.area or '全城'}")
-        for index, url in enumerate(urls, start=1):
-            prefix = f"URL 第 {index}/{page_count} 页" if page_count > 1 else "URL"
-            print(f"   {prefix}: {url}")
+        source = "贝壳找房" if args.platform == "贝壳" else "链家"
 
-        if args.html:
-            html_pages = _load_html_pages_from_paths(args.html, page_count)
+        if args.current_chrome:
+            print(f"\n🔍 {args.platform} - 读取当前 Chrome 标签页")
+            current_page = _load_current_chrome_page(args)
+            if not current_page:
+                print("❌ 未能读取当前 Chrome 页面")
+                return
+            html_pages = [current_page["html"]]
+            source_urls = [current_page["url"]]
+            page_count = 1
+            print(f"   URL: {current_page['url']}")
+            print(f"   标题: {current_page['title']}")
         else:
-            html_pages = _load_html_pages_with_human_browser(urls, args)
+            page_count = max(1, args.pages or 1)
+            urls = [
+                build_beike_url(
+                    args.city,
+                    args.area,
+                    args.budget_min,
+                    args.budget_max,
+                    page=page,
+                    near_subway=args.near_subway,
+                    ordinary_residence=args.ordinary_residence,
+                )
+                for page in range(1, page_count + 1)
+            ]
+            source_urls = urls
+            print(f"\n🔍 {args.platform} - {args.city} {args.area or '全城'}")
+            for index, url in enumerate(urls, start=1):
+                prefix = f"URL 第 {index}/{page_count} 页" if page_count > 1 else "URL"
+                print(f"   {prefix}: {url}")
+
+            if args.html:
+                html_pages = _load_html_pages_from_paths(args.html, page_count)
+            else:
+                html_pages = _load_html_pages_with_human_browser(urls, args)
+
         if not html_pages:
             print("❌ 未获得页面 HTML")
             return
-        source = "贝壳找房" if args.platform == "贝壳" else "链家"
+
         listings = []
         for index, html in enumerate(html_pages, start=1):
             if not html:
                 continue
             if args.limit and len(listings) >= args.limit:
                 break
-            remaining = args.limit - len(listings) if args.limit else None
-            page_listings = parse_beike_listings_html(html, city_code=code, source=source, limit=remaining)
-            if args.near_subway:
+            source_url = source_urls[index - 1] if index <= len(source_urls) else ""
+            remaining = args.limit - len(listings) if args.limit else 0
+            page_listings = parse_beike_listings_html(html, city_code=code, source=source)
+            is_near_subway = args.near_subway or "su1" in source_url
+            is_ordinary_residence = args.ordinary_residence or "sf1" in source_url
+            page_listings = _filter_listings_by_args(page_listings, args, is_ordinary_residence)
+            if remaining:
+                page_listings = page_listings[:remaining]
+            if is_near_subway:
                 mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
-            if args.ordinary_residence:
+            if is_ordinary_residence:
                 mark_ordinary_residence_listings(page_listings)
             if page_count > 1:
                 print(f"   第 {index}/{page_count} 页解析: {len(page_listings)} 条")
@@ -91,6 +116,67 @@ def _fallback_url(args):
 def _load_html_with_human_browser(url, args):
     html_pages = _load_html_pages_with_human_browser([url], args)
     return html_pages[0] if html_pages else ""
+
+
+def _load_current_chrome_page(args):
+    app_name = _applescript_string(args.chrome_app)
+    tmp_dir = tempfile.mkdtemp(prefix="home-buyer-chrome-")
+    html_path = os.path.join(tmp_dir, "active-tab.html")
+    try:
+        url = _run_osascript(f'tell application "{app_name}" to get URL of active tab of front window')
+        title = _run_osascript(f'tell application "{app_name}" to get title of active tab of front window')
+        _run_osascript(
+            f'tell application "{app_name}" to save active tab of front window '
+            f'in POSIX file "{_applescript_string(html_path)}" as "only html"'
+        )
+        for _ in range(30):
+            if os.path.exists(html_path) and os.path.getsize(html_path) > 0:
+                break
+            time.sleep(0.1)
+        with open(html_path, "r", encoding="utf-8", errors="replace") as f:
+            html = f.read()
+        return {"url": url, "title": title, "html": html}
+    except Exception as e:
+        print(f"⚠️ 读取 Chrome 当前页失败: {e}")
+        return None
+    finally:
+        try:
+            if os.path.exists(html_path):
+                os.remove(html_path)
+            os.rmdir(tmp_dir)
+        except OSError:
+            pass
+
+
+def _run_osascript(script):
+    try:
+        return subprocess.check_output(
+            ["osascript", "-e", script],
+            text=True,
+            stderr=subprocess.STDOUT,
+        ).strip()
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError((e.output or "").strip() or str(e)) from e
+
+
+def _applescript_string(value):
+    return str(value).replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _filter_listings_by_args(listings, args, ordinary_residence=False):
+    filtered = []
+    for listing in listings:
+        price = float(listing.get("price_wan") or 0)
+        if args.budget_min is not None and price < args.budget_min:
+            continue
+        if args.budget_max is not None and price > args.budget_max:
+            continue
+        if ordinary_residence:
+            text = f"{listing.get('community', '')}{listing.get('name', '')}{listing.get('property_type', '')}"
+            if "商业类" in text or "商业办公" in text:
+                continue
+        filtered.append(listing)
+    return filtered
 
 
 def _load_html_pages_from_paths(html_path, page_count):
@@ -193,9 +279,11 @@ if __name__ == "__main__":
     parser.add_argument("--near-subway", action="store_true", help="贝壳近地铁筛选（su1）")
     parser.add_argument("--ordinary-residence", action="store_true", help="贝壳普通住宅筛选（sf1）")
     parser.add_argument("--pages", type=int, default=1, help="贝壳/链家列表页数，--limit 为总条数上限")
-    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--limit", type=int, default=0, help="解析条数上限，默认0表示当前页全部")
     parser.add_argument("--save", action="store_true")
     parser.add_argument("--html", help="直接解析已保存的列表页 HTML")
+    parser.add_argument("--current-chrome", action="store_true", help="读取当前 Google Chrome 标签页；适合手动筛选/翻页/过验证后导入")
+    parser.add_argument("--chrome-app", default="Google Chrome", help="--current-chrome 使用的浏览器应用名，默认 Google Chrome")
     parser.add_argument("--profile-dir", help="Playwright 浏览器用户数据目录，默认 data/browser-profile")
     parser.add_argument("--keep-browser", action="store_true", help="解析后不关闭 Playwright 浏览器")
     args = parser.parse_args()

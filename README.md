@@ -220,18 +220,15 @@ python3 scripts/recommend_listings.py \
   --metro-strong-distance 500 \
   --metro-good-distance 800
 
-# 贝壳/链家：人在回路抓取（推荐）
+# 贝壳/链家：人在系统 Chrome 中手动筛选/翻页/过验证后，读取当前页（推荐）
 python3 scripts/crawl_interactive.py \
   --platform 贝壳 \
-  --city 北京 \
-  --area 朝阳区 \
-  --budget-min 300 \
-  --budget-max 800 \
-  --near-subway \
-  --ordinary-residence \
-  --pages 2 \
-  --limit 20 \
+  --city 上海 \
+  --budget-max 250 \
+  --current-chrome \
   --save
+
+# URL 中包含 su1 / sf1 时会自动标记近地铁 / 普通住宅；手动翻到下一页后重复执行即可。
 
 # 如果已经在浏览器中保存了列表页 HTML
 python3 scripts/crawl_listings.py \
