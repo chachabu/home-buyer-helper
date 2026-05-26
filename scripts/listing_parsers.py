@@ -188,7 +188,7 @@ def resolve_beike_area_slug(city, area):
     return BEIKE_AREA_SLUGS.get(city, {}).get(area, "")
 
 
-def build_beike_url(city="北京", area=None, budget_min=None, budget_max=None, page=1):
+def build_beike_url(city="北京", area=None, budget_min=None, budget_max=None, page=1, near_subway=False):
     code = resolve_city_code(city)
     parts = []
     area_slug = resolve_beike_area_slug(city, area)
@@ -196,16 +196,32 @@ def build_beike_url(city="北京", area=None, budget_min=None, budget_max=None, 
         parts.append(area_slug)
     min_token = price_token(budget_min)
     max_token = price_token(budget_max)
+    filters = []
     if min_token and max_token:
-        parts.append(f"bp{min_token}ep{max_token}")
+        filters.append(f"bp{min_token}ep{max_token}")
     elif min_token:
-        parts.append(f"bp{min_token}")
+        filters.append(f"bp{min_token}")
     elif max_token:
-        parts.append(f"ep{max_token}")
+        filters.append(f"ep{max_token}")
+    if near_subway:
+        filters.append("su1")
+    token = ""
     if page and page > 1:
-        parts.append(f"pg{page}")
+        token += f"pg{page}"
+    token += "".join(filters)
+    if token:
+        parts.append(token)
     suffix = "/".join(parts)
     return f"https://{code}.ke.com/ershoufang/{suffix + '/' if suffix else ''}"
+
+
+def mark_near_subway_listings(listings, label="近地铁（贝壳筛选）"):
+    for listing in listings:
+        listing["near_subway"] = True
+        transport = clean_text(listing.get("transport", ""))
+        if label and label not in transport:
+            listing["transport"] = f"{transport}；{label}" if transport else label
+    return listings
 
 
 def looks_like_blocked_page(html, final_url=""):
@@ -426,17 +442,39 @@ def assign_preview_ids(listings, start=1):
 
 
 def append_unique_listings(existing, incoming):
-    seen = {listing_identity(item) for item in existing}
+    seen = {listing_identity(item): item for item in existing}
     added = []
     next_num = next_listing_number(existing)
     for listing in incoming:
         key = listing_identity(listing)
         if key in seen:
+            merge_listing_metadata(seen[key], listing)
             continue
         item = dict(listing)
         item["id"] = f"H{next_num:03d}"
         next_num += 1
         existing.append(item)
         added.append(item)
-        seen.add(key)
+        seen[key] = item
     return added
+
+
+def merge_listing_metadata(existing, incoming):
+    changed = False
+    if incoming.get("near_subway") and not existing.get("near_subway"):
+        existing["near_subway"] = True
+        changed = True
+
+    incoming_transport = clean_text(incoming.get("transport", ""))
+    existing_transport = clean_text(existing.get("transport", ""))
+    if incoming_transport and incoming_transport not in existing_transport:
+        existing["transport"] = f"{existing_transport}；{incoming_transport}" if existing_transport else incoming_transport
+        changed = True
+
+    for key in ("nearest_metro", "metro_distance", "monthly_rent", "rent_source"):
+        if incoming.get(key) and not existing.get(key):
+            existing[key] = incoming[key]
+            changed = True
+
+    if changed:
+        existing["updated_at"] = datetime.now().isoformat()

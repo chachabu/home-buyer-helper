@@ -62,6 +62,13 @@ def split_csv(value):
     return [part.strip() for part in (value or "").split(",") if part.strip()]
 
 
+def is_near_subway(listing):
+    if listing.get("near_subway"):
+        return True
+    text = " ".join(str(listing.get(key, "")) for key in ("transport", "nearest_metro", "tags"))
+    return "近地铁" in text
+
+
 def passes_hard_filters(listing, args):
     price = as_float(listing.get("price_wan"))
     monthly_rent = as_float(listing.get("monthly_rent"))
@@ -109,6 +116,8 @@ def score_metro(listing, args):
     distance = as_float(listing.get("metro_distance"), default=-1)
     nearest = listing.get("nearest_metro", "")
     if distance < 0:
+        if is_near_subway(listing):
+            return 0.82, [listing.get("transport") or "近地铁筛选命中"]
         return 0.0, ["缺少地铁距离"]
     if distance <= args.metro_strong_distance:
         score = 1.0
@@ -227,6 +236,8 @@ def build_tags(listing, args):
         tags.append("近地铁强推荐")
     elif metro_distance >= 0 and metro_distance <= args.metro_good_distance:
         tags.append("地铁友好")
+    elif is_near_subway(listing):
+        tags.append("地铁友好")
     if monthly_rent >= args.target_monthly_rent:
         tags.append("高租金")
     if rent_yield >= args.strong_rent_yield:
@@ -329,7 +340,8 @@ def recommend_listings(args):
         print(f"   标签: {tags}")
         print(f"   总价: {listing.get('price_wan', 0)}万  单价: {listing.get('unit_price', '-') or '-'}元/㎡")
         print(f"   租金: {monthly_rent:g}元/月  租售比: {rent_yield:.2f}%  来源: {listing.get('rent_source', '-') or '-'}")
-        print(f"   地铁: {listing.get('nearest_metro', '-') or '-'}  {listing.get('metro_distance', '-') or '-'}米")
+        metro_label = listing.get("nearest_metro") or listing.get("transport") or "-"
+        print(f"   地铁: {metro_label}  {listing.get('metro_distance', '-') or '-'}米")
         print(f"   户型: {listing.get('room_type', '-') or '-'}  面积: {listing.get('area', 0)}㎡")
         print(f"   房龄: {listing.get('building_age', '?') or '?'}年  装修: {listing.get('decoration', '-') or '-'}")
         print(f"   学区: {listing.get('school_district', '-') or '-'}  等级: {listing.get('school_tier', '-') or '-'}")

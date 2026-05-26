@@ -18,6 +18,7 @@ from listing_parsers import (
     fetch_page,
     load_listings,
     looks_like_blocked_page,
+    mark_near_subway_listings,
     parse_beike_listings_html,
     parse_generic_html,
     resolve_beike_area_slug,
@@ -31,18 +32,40 @@ def crawl_ke(args):
     code = resolve_city_code(args.city)
     if args.area and not resolve_beike_area_slug(args.city, args.area):
         print(f"  ⚠️ 暂未内置区域 slug: {args.city} {args.area}，将抓取全城列表")
-    url = build_beike_url(args.city, args.area, args.budget_min, args.budget_max)
+    source = "贝壳找房" if args.platform == "贝壳" else "链家"
+    listings = []
+    page_count = max(1, args.pages or 1)
 
-    print(f"  抓取: {url}")
-    try:
-        html, final_url = fetch_page(url)
-    except Exception as e:
-        print(f"  获取页面失败: {e}")
-        return []
-    if looks_like_blocked_page(html, final_url):
-        print("  ⚠️ 检测到登录/验证码页面，建议改用 crawl_interactive.py 让人处理验证")
-        return []
-    return parse_beike_listings_html(html, city_code=code, source="贝壳找房", limit=args.limit)
+    for page in range(1, page_count + 1):
+        if args.limit and len(listings) >= args.limit:
+            break
+        remaining = args.limit - len(listings) if args.limit else None
+        url = build_beike_url(
+            args.city,
+            args.area,
+            args.budget_min,
+            args.budget_max,
+            page=page,
+            near_subway=args.near_subway,
+        )
+        prefix = f"第 {page}/{page_count} 页" if page_count > 1 else "抓取"
+        print(f"  {prefix}: {url}")
+        try:
+            html, final_url = fetch_page(url)
+        except Exception as e:
+            print(f"  获取页面失败: {e}")
+            break
+        if looks_like_blocked_page(html, final_url):
+            print("  ⚠️ 检测到登录/验证码页面，建议改用 crawl_interactive.py 让人处理验证")
+            break
+        page_listings = parse_beike_listings_html(html, city_code=code, source=source, limit=remaining)
+        if args.near_subway:
+            mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
+        print(f"    解析: {len(page_listings)} 条")
+        if not page_listings:
+            break
+        listings.extend(page_listings)
+    return listings
 
 
 def crawl_lianjia(args):
@@ -82,13 +105,31 @@ def crawl_anjuke(args):
 
 def crawl_from_html(args):
     code = resolve_city_code(args.city)
-    with open(args.html, "r", encoding="utf-8", errors="replace") as f:
-        html = f.read()
-    if args.platform in ("贝壳", "链家"):
-        source = "贝壳找房" if args.platform == "贝壳" else "链家"
-        return parse_beike_listings_html(html, city_code=code, source=source, limit=args.limit)
-    info = parse_generic_html(html, args.html)
-    return [info] if info.get("name") else []
+    html_paths = [args.html]
+    if args.pages and args.pages > 1:
+        if "{page}" in args.html:
+            html_paths = [args.html.format(page=page) for page in range(1, args.pages + 1)]
+        else:
+            print("  ⚠️ --html 未包含 {page} 占位符，将只解析单个 HTML 文件")
+
+    listings = []
+    for html_path in html_paths:
+        if args.limit and len(listings) >= args.limit:
+            break
+        remaining = args.limit - len(listings) if args.limit else None
+        with open(html_path, "r", encoding="utf-8", errors="replace") as f:
+            html = f.read()
+        if args.platform in ("贝壳", "链家"):
+            source = "贝壳找房" if args.platform == "贝壳" else "链家"
+            page_listings = parse_beike_listings_html(html, city_code=code, source=source, limit=remaining)
+            if args.near_subway:
+                mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
+            listings.extend(page_listings)
+            continue
+        info = parse_generic_html(html, html_path)
+        if info.get("name"):
+            listings.append(info)
+    return listings
 
 
 def crawl_listings(args):
@@ -142,6 +183,8 @@ if __name__ == "__main__":
     parser.add_argument("--area")
     parser.add_argument("--budget-min", type=float)
     parser.add_argument("--budget-max", type=float)
+    parser.add_argument("--near-subway", action="store_true", help="贝壳近地铁筛选（su1）")
+    parser.add_argument("--pages", type=int, default=1, help="贝壳/链家列表页数，--limit 为总条数上限")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--save", action="store_true")
     parser.add_argument("--html", help="解析已保存的列表页 HTML，适合手动登录/验证码后使用")

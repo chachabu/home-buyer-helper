@@ -16,6 +16,7 @@ from listing_parsers import (
     assign_preview_ids,
     build_beike_url,
     load_listings,
+    mark_near_subway_listings,
     parse_beike_listings_html,
     resolve_city_code,
     save_listings,
@@ -25,20 +26,44 @@ from listing_parsers import (
 def crawl_interactive(args):
     if args.platform in ("贝壳", "链家"):
         code = resolve_city_code(args.city)
-        url = build_beike_url(args.city, args.area, args.budget_min, args.budget_max)
+        page_count = max(1, args.pages or 1)
+        urls = [
+            build_beike_url(
+                args.city,
+                args.area,
+                args.budget_min,
+                args.budget_max,
+                page=page,
+                near_subway=args.near_subway,
+            )
+            for page in range(1, page_count + 1)
+        ]
         print(f"\n🔍 {args.platform} - {args.city} {args.area or '全城'}")
-        print(f"   URL: {url}")
+        for index, url in enumerate(urls, start=1):
+            prefix = f"URL 第 {index}/{page_count} 页" if page_count > 1 else "URL"
+            print(f"   {prefix}: {url}")
 
         if args.html:
-            with open(os.path.expanduser(args.html), "r", encoding="utf-8", errors="replace") as f:
-                html = f.read()
+            html_pages = _load_html_pages_from_paths(args.html, page_count)
         else:
-            html = _load_html_with_human_browser(url, args)
-        if not html:
+            html_pages = _load_html_pages_with_human_browser(urls, args)
+        if not html_pages:
             print("❌ 未获得页面 HTML")
             return
         source = "贝壳找房" if args.platform == "贝壳" else "链家"
-        listings = parse_beike_listings_html(html, city_code=code, source=source, limit=args.limit)
+        listings = []
+        for index, html in enumerate(html_pages, start=1):
+            if not html:
+                continue
+            if args.limit and len(listings) >= args.limit:
+                break
+            remaining = args.limit - len(listings) if args.limit else None
+            page_listings = parse_beike_listings_html(html, city_code=code, source=source, limit=remaining)
+            if args.near_subway:
+                mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
+            if page_count > 1:
+                print(f"   第 {index}/{page_count} 页解析: {len(page_listings)} 条")
+            listings.extend(page_listings)
         _preview_and_save(listings, args.save)
         return
 
@@ -60,18 +85,40 @@ def _fallback_url(args):
 
 
 def _load_html_with_human_browser(url, args):
+    html_pages = _load_html_pages_with_human_browser([url], args)
+    return html_pages[0] if html_pages else ""
+
+
+def _load_html_pages_from_paths(html_path, page_count):
+    expanded = os.path.expanduser(html_path)
+    if page_count > 1 and "{page}" not in expanded:
+        print("  ⚠️ --html 未包含 {page} 占位符，将只解析单个 HTML 文件")
+        page_count = 1
+    paths = [expanded.format(page=page) for page in range(1, page_count + 1)]
+    html_pages = []
+    for path in paths:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            html_pages.append(f.read())
+    return html_pages
+
+
+def _load_html_pages_with_human_browser(urls, args):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         print("\n💡 当前未安装 Playwright，已退回到手动 HTML 模式。")
         print("   安装后可直接在脚本打开的浏览器里登录/填验证码，然后自动解析：")
         print("   python3 -m pip install playwright && python3 -m playwright install chromium")
-        webbrowser.open(url)
-        html_path = input("\n请在浏览器完成登录/验证码后保存网页 HTML，并输入 HTML 文件路径: ").strip()
-        if not html_path:
-            return ""
-        with open(os.path.expanduser(html_path), "r", encoding="utf-8", errors="replace") as f:
-            return f.read()
+        html_pages = []
+        for index, url in enumerate(urls, start=1):
+            webbrowser.open(url)
+            suffix = f"第 {index}/{len(urls)} 页" if len(urls) > 1 else "当前页"
+            html_path = input(f"\n请在浏览器完成登录/验证码后保存{suffix} HTML，并输入 HTML 文件路径: ").strip()
+            if not html_path:
+                continue
+            with open(os.path.expanduser(html_path), "r", encoding="utf-8", errors="replace") as f:
+                html_pages.append(f.read())
+        return html_pages
 
     profile_dir = os.path.expanduser(args.profile_dir or os.path.join(DATA_DIR, "browser-profile"))
     os.makedirs(profile_dir, exist_ok=True)
@@ -84,24 +131,31 @@ def _load_html_with_human_browser(url, args):
                 locale="zh-CN",
             )
             page = browser.pages[0] if browser.pages else browser.new_page()
-            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            html_pages = []
             print("\n🌐 已打开浏览器。请在浏览器里完成登录/验证码/筛选调整。")
-            input("完成后回到终端按回车，脚本会读取当前页面并解析房源...")
-            html = page.content()
+            for index, url in enumerate(urls, start=1):
+                page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                suffix = f"第 {index}/{len(urls)} 页" if len(urls) > 1 else "当前页面"
+                input(f"{suffix} 准备好后回到终端按回车，脚本会读取当前页面并解析房源...")
+                html_pages.append(page.content())
             if args.keep_browser:
                 print("浏览器将保持打开，方便继续调整筛选。")
             else:
                 browser.close()
-            return html
+            return html_pages
     except Exception as e:
         print(f"\n⚠️ Playwright 浏览器启动失败: {e}")
         print("   可运行：python3 -m playwright install chromium")
-        webbrowser.open(url)
-        html_path = input("也可以保存网页 HTML 后输入路径继续解析: ").strip()
-        if not html_path:
-            return ""
-        with open(os.path.expanduser(html_path), "r", encoding="utf-8", errors="replace") as f:
-            return f.read()
+        html_pages = []
+        for index, url in enumerate(urls, start=1):
+            webbrowser.open(url)
+            suffix = f"第 {index}/{len(urls)} 页" if len(urls) > 1 else "当前页"
+            html_path = input(f"也可以保存{suffix} HTML 后输入路径继续解析: ").strip()
+            if not html_path:
+                continue
+            with open(os.path.expanduser(html_path), "r", encoding="utf-8", errors="replace") as f:
+                html_pages.append(f.read())
+        return html_pages
 
 
 def _preview_and_save(listings, should_save):
@@ -132,6 +186,8 @@ if __name__ == "__main__":
     parser.add_argument("--area")
     parser.add_argument("--budget-min", type=float)
     parser.add_argument("--budget-max", type=float)
+    parser.add_argument("--near-subway", action="store_true", help="贝壳近地铁筛选（su1）")
+    parser.add_argument("--pages", type=int, default=1, help="贝壳/链家列表页数，--limit 为总条数上限")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--save", action="store_true")
     parser.add_argument("--html", help="直接解析已保存的列表页 HTML")

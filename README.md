@@ -227,6 +227,8 @@ python3 scripts/crawl_interactive.py \
   --area 朝阳区 \
   --budget-min 300 \
   --budget-max 800 \
+  --near-subway \
+  --pages 2 \
   --limit 20 \
   --save
 
