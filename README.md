@@ -234,6 +234,16 @@ python3 scripts/crawl_interactive.py \
 # 抓取结束后会按评分展示前15名；如果本次 URL 命中 su1 / sf1，榜单也只看近地铁 / 普通住宅。
 # 可用 --recommend-limit 调整展示数量，或用 --no-recommend 关闭。
 
+# 按小区租房第一页估算参考月租：默认只用整租样本，按每㎡月租中位数 * 二手房面积写回。
+python3 scripts/enrich_rent_estimates.py \
+  --city 上海 \
+  --budget-max 250 \
+  --only-near-subway \
+  --only-ordinary-residence \
+  --chrome \
+  --pause-on-block \
+  --save
+
 # 如果已经在浏览器中保存了列表页 HTML
 python3 scripts/crawl_listings.py \
   --platform 贝壳 \
@@ -262,6 +272,7 @@ home-buyer-helper/
     ├── add_viewing.py        # 记录看房
     ├── list_listings.py      # 列出/筛选/详情
     ├── recommend_listings.py # 智能推荐
+    ├── enrich_rent_estimates.py # 按小区租房样本估算月租
     ├── calculate_budget.py   # 预算 & 月供计算
     ├── compare_listings.py   # 房源对比表
     ├── import_listings.py    # 批量导入 CSV/Excel

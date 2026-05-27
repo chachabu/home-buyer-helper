@@ -8,7 +8,7 @@ import ssl
 import urllib.request
 from datetime import datetime
 from html import unescape
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -225,6 +225,25 @@ def build_beike_url(
     return f"https://{code}.ke.com/ershoufang/{suffix + '/' if suffix else ''}"
 
 
+def build_beike_rent_url(city="北京", community="", area=None, page=1, rent_type="whole"):
+    code = resolve_city_code(city)
+    area_slug = resolve_beike_area_slug(city, area)
+    parts = ["zufang"]
+    if area_slug:
+        parts.append(area_slug)
+
+    token = ""
+    if page and page > 1:
+        token += f"pg{page}"
+    if rent_type == "whole":
+        token += "rt200600000001"
+    elif rent_type == "shared":
+        token += "rt200600000002"
+    token += f"rs{quote(str(community or '').strip())}"
+    parts.append(token)
+    return f"https://{code}.zu.ke.com/{'/'.join(parts)}/"
+
+
 def mark_near_subway_listings(listings, label="近地铁（贝壳筛选）"):
     for listing in listings:
         listing["near_subway"] = True
@@ -370,6 +389,90 @@ def parse_beike_listings_html(html, city_code="bj", source="贝壳找房", limit
             "updated_at": datetime.now().isoformat(),
         })
     return listings
+
+
+def normalize_community_name(value):
+    text = clean_text(value)
+    text = re.sub(r"[（(].*?[）)]", "", text)
+    return re.sub(r"\s+", "", text)
+
+
+def parse_beike_rent_listings_html(
+    html,
+    city_code="bj",
+    source="贝壳租房",
+    community=None,
+    exact_community=True,
+    limit=None,
+):
+    search_name = normalize_community_name(community)
+    search_head = (html or "").split("<!-- 列表分页模块 -->", 1)[0]
+    starts = [m.start() for m in re.finditer(r'class="content__list--item"', search_head)]
+    rentals = []
+
+    for index, start in enumerate(starts):
+        if limit and len(rentals) >= limit:
+            break
+        end = starts[index + 1] if index + 1 < len(starts) else len(search_head)
+        block = search_head[start:end]
+
+        title = clean_text(extract_first([
+            r'<a[^>]*class="[^"]*\btwoline\b[^"]*"[^>]*>(.*?)</a>',
+            r'title="([^"]{2,160})"',
+        ], block))
+        detail_url = extract_first([
+            r'href="(https?://[^"]+/zufang/[^"]+\.html)"',
+            r'href="(/zufang/[^"]+\.html)"',
+        ], block)
+        if detail_url:
+            detail_url = urljoin(f"https://{city_code}.zu.ke.com", detail_url)
+
+        community_name = clean_text(extract_first([
+            r'<a[^>]+title="([^"]+)"[^>]+href="/zufang/c[^"]+"',
+        ], block))
+        if not community_name and community:
+            community_name = clean_text(community)
+
+        if exact_community and search_name:
+            candidate_name = normalize_community_name(community_name)
+            candidate_title = normalize_community_name(title)
+            if (
+                search_name not in candidate_name
+                and candidate_name not in search_name
+                and search_name not in candidate_title
+            ):
+                continue
+
+        price_text = extract_first([
+            r'class="content__list--item-price"[^>]*>\s*<em>([\d,.]+)</em>\s*元/月',
+            r'<em>([\d,.]+)</em>\s*元/月',
+        ], block)
+        area_text = extract_first([
+            r'(\d+(?:\.\d+)?)\s*㎡',
+        ], clean_text(extract_first([
+            r'<p[^>]*class="[^"]*\bcontent__list--item--des\b[^"]*"[^>]*>(.*?)</p>',
+        ], block)))
+        room_type = clean_text(extract_first([
+            r'(\d+室\d+厅\d*卫?)',
+            r'(\d+室\d+厅)',
+        ], block))
+        monthly_rent = parse_number(price_text, 0)
+        area_sqm = parse_number(area_text, 0)
+        if not title and not detail_url:
+            continue
+
+        rent_per_sqm = monthly_rent / area_sqm if monthly_rent and area_sqm else 0
+        rentals.append({
+            "community": community_name,
+            "title": title,
+            "monthly_rent": monthly_rent,
+            "area": area_sqm,
+            "rent_per_sqm": rent_per_sqm,
+            "room_type": room_type,
+            "source": source,
+            "url": detail_url,
+        })
+    return rentals
 
 
 def parse_ke_lianjia_detail_html(html, url):

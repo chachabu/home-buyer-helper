@@ -361,6 +361,11 @@ def recommend_listings(args):
         print(f"   标签: {tags}")
         print(f"   总价: {listing.get('price_wan', 0)}万  单价: {listing.get('unit_price', '-') or '-'}元/㎡")
         print(f"   租金: {monthly_rent:g}元/月  租售比: {rent_yield:.2f}%  来源: {listing.get('rent_source', '-') or '-'}")
+        if listing.get("rent_per_sqm") or listing.get("rent_sample_count"):
+            print(
+                f"   租金估算: {listing.get('rent_per_sqm', '-') or '-'}元/㎡/月  "
+                f"样本: {listing.get('rent_sample_count', '-') or '-'}"
+            )
         metro_label = listing.get("nearest_metro") or listing.get("transport") or "-"
         print(f"   地铁: {metro_label}  {listing.get('metro_distance', '-') or '-'}米")
         print(f"   户型: {listing.get('room_type', '-') or '-'}  面积: {listing.get('area', 0)}㎡")
