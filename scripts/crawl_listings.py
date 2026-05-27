@@ -16,6 +16,7 @@ from listing_parsers import (
     assign_preview_ids,
     build_beike_url,
     fetch_page,
+    filter_listings_by_keywords,
     load_listings,
     looks_like_blocked_page,
     mark_ordinary_residence_listings,
@@ -65,6 +66,9 @@ def crawl_ke(args):
             mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
         if args.ordinary_residence:
             mark_ordinary_residence_listings(page_listings)
+        page_listings, removed = filter_listings_by_keywords(page_listings, args.exclude_keywords)
+        if removed:
+            print(f"    已按关键词排除 {len(removed)} 条: {args.exclude_keywords}")
         print(f"    解析: {len(page_listings)} 条")
         if not page_listings:
             break
@@ -130,6 +134,9 @@ def crawl_from_html(args):
                 mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
             if args.ordinary_residence:
                 mark_ordinary_residence_listings(page_listings)
+            page_listings, removed = filter_listings_by_keywords(page_listings, args.exclude_keywords)
+            if removed:
+                print(f"    已按关键词排除 {len(removed)} 条: {args.exclude_keywords}")
             listings.extend(page_listings)
             continue
         info = parse_generic_html(html, html_path)
@@ -191,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument("--budget-max", type=float)
     parser.add_argument("--near-subway", action="store_true", help="贝壳近地铁筛选（su1）")
     parser.add_argument("--ordinary-residence", action="store_true", help="贝壳普通住宅筛选（sf1）")
+    parser.add_argument("--exclude-keywords", default="", help="排除小区/标题关键词，逗号分隔，如 大厦,商住,办公")
     parser.add_argument("--pages", type=int, default=1, help="贝壳/链家列表页数，--limit 为总条数上限")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--save", action="store_true")

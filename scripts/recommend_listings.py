@@ -62,6 +62,17 @@ def split_csv(value):
     return [part.strip() for part in (value or "").split(",") if part.strip()]
 
 
+def listing_contains_keywords(listing, keywords):
+    words = split_csv((keywords or "").replace("，", ",").replace("、", ","))
+    if not words:
+        return False
+    text = " ".join(
+        str(listing.get(key, ""))
+        for key in ("community", "name", "address", "property_type", "house_type")
+    )
+    return any(word in text for word in words)
+
+
 def is_near_subway(listing):
     if listing.get("near_subway"):
         return True
@@ -109,6 +120,8 @@ def passes_hard_filters(listing, args):
         return False, "非近地铁房源"
     if getattr(args, "only_ordinary_residence", False) and not is_ordinary_residence(listing):
         return False, "非普通住宅"
+    if listing_contains_keywords(listing, getattr(args, "exclude_keywords", "")):
+        return False, f"命中排除关键词：{args.exclude_keywords}"
     if not args.include_commercial and is_commercial_like(listing):
         return False, "商业类房源默认排除"
     return True, ""
@@ -437,6 +450,7 @@ def add_arguments(parser):
     parser.add_argument("--max-metro-distance", type=float, help="最大距地铁距离（米），硬过滤；不填则只参与评分")
     parser.add_argument("--only-near-subway", action="store_true", help="只推荐近地铁记录；贝壳su1抓取结果适用")
     parser.add_argument("--only-ordinary-residence", action="store_true", help="只推荐普通住宅记录；贝壳sf1抓取结果适用")
+    parser.add_argument("--exclude-keywords", default="", help="排除小区/标题关键词，逗号分隔，如 大厦,商住,办公")
     parser.add_argument("--include-commercial", action="store_true", help="包含商业类房源；默认排除")
 
     # 默认权重总和 100，执行 skill 时可按需覆盖。

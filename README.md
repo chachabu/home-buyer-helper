@@ -228,9 +228,11 @@ python3 scripts/crawl_interactive.py \
   --budget-max 250 \
   --current-chrome \
   --auto-next \
+  --exclude-keywords 大厦,商务,商住,商业,办公,写字楼,酒店式,公寓 \
   --save
 
 # URL 中包含 su1 / sf1 时会自动标记近地铁 / 普通住宅。
+# --exclude-keywords 可排除疑似商住/办公/酒店式公寓等非纯住宅关键词。
 # 读取当前页会等待列表 DOM 出现；--auto-next 默认最多连续读取10页，遇到最后一页或触发验证即停止。
 # 抓取结束后会按评分展示前15名；如果本次 URL 命中 su1 / sf1，榜单也只看近地铁 / 普通住宅。
 # 默认用 Markdown 表格输出，房源名带详情链接；可用 --recommend-limit 调整展示数量，或用 --no-recommend 关闭。

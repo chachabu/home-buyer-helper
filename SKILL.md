@@ -258,6 +258,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 **贝壳/链家验证码处理优先级：**
 - 严格反爬场景优先让用户在系统 Chrome 中手动筛选、翻页、登录和过验证，然后调用 `scripts/crawl_interactive.py --current-chrome --save` 读取当前标签页。
 - URL 中包含 `su1` / `sf1` 时，`--current-chrome` 会自动标记近地铁 / 普通住宅；可额外传 `--budget-min` / `--budget-max` 作为本地价格保护。
+- 用户要排除商住两用/办公类时，在抓取和推荐命令加 `--exclude-keywords 大厦,商务,商住,商业,办公,写字楼,酒店式,公寓`；如果“大厦”误伤纯住宅，可去掉“大厦”或只传明确黑名单词。
 - 不要把无人在场的自动翻页作为默认方案；贝壳页码 URL 容易触发极验。需要多页时，用 `--auto-next` 从当前 Chrome 页开始连续读取，默认最多10页；到最后一页或触发验证时停止，触发验证则让用户在 Chrome 中过验证，页面稳定后继续执行。
 - `--current-chrome` 会等待列表 DOM 出现，避免 Chrome 标题/URL 已更新但列表内容尚未保存出来时误判为无列表。
 - 抓取结束后默认按评分展示前15名；如果本次 URL/参数命中 `su1` / `sf1`，榜单也只看近地铁 / 普通住宅；默认输出 Markdown 表格，房源名带详情链接；需要调整数量时用 `--recommend-limit <N>`，不想展示时用 `--no-recommend`。
@@ -273,7 +274,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - `scripts/add_listing.py` - 添加新房源（支持 --community 小区名 --metro-distance 地铁距离 --my-score 个人评分）
 - `scripts/update_status.py` - 更新房源状态
 - `scripts/list_listings.py` - 列出房源（支持筛选，展示：小区 / 名称 / 总价 / 面积 / 地铁距离 / 个人评分 / 状态 / 链接）
-- `scripts/recommend_listings.py` - 智能推荐房源；支持 `--only-near-subway` / `--only-ordinary-residence` 做硬过滤
+- `scripts/recommend_listings.py` - 智能推荐房源；支持 `--only-near-subway` / `--only-ordinary-residence` / `--exclude-keywords` 做硬过滤
 - `scripts/enrich_rent_estimates.py` - 按小区租房第一页整租样本估算参考月租；贝壳租房需登录时用 `--chrome --pause-on-block`
 - `scripts/add_viewing.py` - 记录看房信息与评分
 - `scripts/calculate_budget.py` - 计算购房预算与月供
@@ -281,8 +282,8 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - `scripts/import_listings.py` - 批量导入房源（CSV/Excel）
 - `scripts/parse_url.py` - 从网页链接解析房源；遇到验证码时建议改用交互式抓取
 - `scripts/parse_image.py` - 从图片识别房源信息（OCR）
-- `scripts/crawl_listings.py` - 从买房网站抓取房源；支持 `--html` 解析已保存列表页，贝壳/链家支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
-- `scripts/crawl_interactive.py` - 人在回路网页抓取；贝壳/链家严格反爬时优先用 `--current-chrome --auto-next` 从用户已手动筛选/过验证的当前页开始读取，默认最多10页，触发验证即停止；抓取结束后默认展示评分前15名；也支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
+- `scripts/crawl_listings.py` - 从买房网站抓取房源；支持 `--html` 解析已保存列表页，贝壳/链家支持 `--near-subway`、`--ordinary-residence`、`--exclude-keywords` 与 `--pages`
+- `scripts/crawl_interactive.py` - 人在回路网页抓取；贝壳/链家严格反爬时优先用 `--current-chrome --auto-next` 从用户已手动筛选/过验证的当前页开始读取，默认最多10页，触发验证即停止；抓取结束后默认展示评分前15名；也支持 `--near-subway`、`--ordinary-residence`、`--exclude-keywords` 与 `--pages`
 
 ## 工作流
 

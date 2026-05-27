@@ -23,6 +23,7 @@ from listing_parsers import (
     append_unique_listings,
     assign_preview_ids,
     build_beike_url,
+    filter_listings_by_keywords,
     load_listings,
     mark_ordinary_residence_listings,
     mark_near_subway_listings,
@@ -297,6 +298,7 @@ def _recommend_after_crawl(args):
     rec_args.budget_max = args.budget_max
     rec_args.limit = args.recommend_limit
     rec_args.output_format = args.recommend_format
+    rec_args.exclude_keywords = args.exclude_keywords
     rec_args.only_near_subway = args.near_subway or getattr(args, "_recommend_near_subway", False)
     rec_args.only_ordinary_residence = (
         args.ordinary_residence or getattr(args, "_recommend_ordinary_residence", False)
@@ -323,6 +325,8 @@ def _current_chrome_command(args):
         parts.extend(["--budget-min", f"{args.budget_min:g}"])
     if args.budget_max is not None:
         parts.extend(["--budget-max", f"{args.budget_max:g}"])
+    if args.exclude_keywords:
+        parts.extend(["--exclude-keywords", _shell_quote(args.exclude_keywords)])
     parts.append("--current-chrome")
     if args.save:
         parts.append("--save")
@@ -331,6 +335,13 @@ def _current_chrome_command(args):
         if args.max_pages != 10:
             parts.extend(["--max-pages", str(args.max_pages)])
     return " ".join(parts)
+
+
+def _shell_quote(value):
+    text = str(value)
+    if re.fullmatch(r"[\w,，、./:-]+", text):
+        return text
+    return "'" + text.replace("'", "'\"'\"'") + "'"
 
 
 def _looks_like_captcha(url, title):
@@ -405,6 +416,9 @@ def _filter_listings_by_args(listings, args, ordinary_residence=False):
             if "商业类" in text or "商业办公" in text:
                 continue
         filtered.append(listing)
+    filtered, removed = filter_listings_by_keywords(filtered, args.exclude_keywords)
+    if removed:
+        print(f"   已按关键词排除 {len(removed)} 条: {args.exclude_keywords}")
     return filtered
 
 
@@ -507,6 +521,7 @@ if __name__ == "__main__":
     parser.add_argument("--budget-max", type=float)
     parser.add_argument("--near-subway", action="store_true", help="贝壳近地铁筛选（su1）")
     parser.add_argument("--ordinary-residence", action="store_true", help="贝壳普通住宅筛选（sf1）")
+    parser.add_argument("--exclude-keywords", default="", help="排除小区/标题关键词，逗号分隔，如 大厦,商住,办公")
     parser.add_argument("--pages", type=int, default=1, help="贝壳/链家列表页数，--limit 为总条数上限")
     parser.add_argument("--limit", type=int, default=0, help="解析条数上限，默认0表示当前页全部")
     parser.add_argument("--save", action="store_true")

@@ -261,6 +261,42 @@ def mark_ordinary_residence_listings(listings):
     return listings
 
 
+def split_keywords(value):
+    if not value:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        parts = []
+        for item in value:
+            parts.extend(split_keywords(item))
+        return parts
+    return [part.strip() for part in re.split(r"[,，、|/\s]+", str(value)) if part.strip()]
+
+
+def listing_contains_keywords(listing, keywords):
+    words = split_keywords(keywords)
+    if not words:
+        return False
+    text = " ".join(
+        str(listing.get(key, ""))
+        for key in ("community", "name", "address", "property_type", "house_type")
+    )
+    return any(word in text for word in words)
+
+
+def filter_listings_by_keywords(listings, keywords):
+    words = split_keywords(keywords)
+    if not words:
+        return listings, []
+    kept = []
+    removed = []
+    for listing in listings:
+        if listing_contains_keywords(listing, words):
+            removed.append(listing)
+        else:
+            kept.append(listing)
+    return kept, removed
+
+
 def looks_like_blocked_page(html, final_url=""):
     sample = clean_text((html or "")[:6000])
     if final_url and "clogin.ke.com" in final_url:
