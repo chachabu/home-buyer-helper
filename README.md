@@ -204,7 +204,8 @@ python3 scripts/recommend_listings.py \
   --target-monthly-rent 5000 \
   --target-rent-yield 2.0 \
   --strong-rent-yield 2.5 \
-  --max-metro-distance 800
+  --max-metro-distance 800 \
+  --format markdown
 
 # 调整权重和阈值：所有评分参数都可在执行时覆盖
 python3 scripts/recommend_listings.py \
@@ -232,7 +233,7 @@ python3 scripts/crawl_interactive.py \
 # URL 中包含 su1 / sf1 时会自动标记近地铁 / 普通住宅。
 # 读取当前页会等待列表 DOM 出现；--auto-next 默认最多连续读取10页，遇到最后一页或触发验证即停止。
 # 抓取结束后会按评分展示前15名；如果本次 URL 命中 su1 / sf1，榜单也只看近地铁 / 普通住宅。
-# 可用 --recommend-limit 调整展示数量，或用 --no-recommend 关闭。
+# 默认用 Markdown 表格输出，房源名带详情链接；可用 --recommend-limit 调整展示数量，或用 --no-recommend 关闭。
 
 # 按小区租房第一页估算参考月租：默认只用整租样本，按每㎡月租中位数 * 二手房面积写回。
 python3 scripts/enrich_rent_estimates.py \

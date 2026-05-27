@@ -296,6 +296,7 @@ def _recommend_after_crawl(args):
     rec_args.budget_min = args.budget_min
     rec_args.budget_max = args.budget_max
     rec_args.limit = args.recommend_limit
+    rec_args.output_format = args.recommend_format
     rec_args.only_near_subway = args.near_subway or getattr(args, "_recommend_near_subway", False)
     rec_args.only_ordinary_residence = (
         args.ordinary_residence or getattr(args, "_recommend_ordinary_residence", False)
@@ -518,6 +519,7 @@ if __name__ == "__main__":
     parser.add_argument("--next-wait-seconds", type=float, default=2.0, help="--auto-next 打开下一页后等待秒数，默认2")
     parser.add_argument("--current-wait-seconds", type=float, default=8.0, help="--current-chrome 等待列表 DOM 出现的秒数，默认8")
     parser.add_argument("--recommend-limit", type=int, default=15, help="抓取结束后按评分展示前N名，默认15")
+    parser.add_argument("--recommend-format", choices=["detail", "markdown"], default="markdown", help="抓取结束后的评分展示格式，默认markdown表格")
     parser.add_argument("--no-recommend", action="store_true", help="抓取结束后不展示评分排名")
     parser.add_argument("--profile-dir", help="Playwright 浏览器用户数据目录，默认 data/browser-profile")
     parser.add_argument("--keep-browser", action="store_true", help="解析后不关闭 Playwright 浏览器")

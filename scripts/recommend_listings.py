@@ -305,6 +305,43 @@ def calculate_match_score(listing, args):
     return total, reasons, dimensions, build_tags(listing, args)
 
 
+def markdown_escape(value):
+    return str(value or "").replace("\\", "\\\\").replace("|", "\\|").replace("[", "\\[").replace("]", "\\]")
+
+
+def markdown_link(label, url):
+    text = markdown_escape(label or "-")
+    if not url:
+        return text
+    return f"[{text}]({url})"
+
+
+def print_markdown_results(scored, args, max_score, filtered):
+    print(f"\n🎯 找到 {len(scored)} 套候选房源（预算/硬条件过滤后，按出租投资评分排序）")
+    if filtered:
+        print(f"已按硬过滤排除 {len(filtered)} 条")
+    print()
+    print("| 排名 | 房源 | 分数 | 总价 | 户型 | 面积 | 估算月租 | 租售比 | 租金样本 | 标签 |")
+    print("|---:|---|---:|---:|---|---:|---:|---:|---:|---|")
+    for i, item in enumerate(scored[:args.limit], 1):
+        listing = item["listing"]
+        monthly_rent = as_float(listing.get("monthly_rent"))
+        rent_yield = rent_yield_percent(listing)
+        tags = " / ".join(item["tags"]) if item["tags"] else "-"
+        label = listing.get("community") or listing.get("name", "") or "-"
+        rent = f"{monthly_rent:g}元" if monthly_rent else "-"
+        rent_yield_text = f"{rent_yield:.2f}%" if rent_yield else "-"
+        sample_count = listing.get("rent_sample_count") or "-"
+        print(
+            f"| {i} | {markdown_link(label, listing.get('url'))} | "
+            f"{item['score']:.1f}/{max_score:g} | {listing.get('price_wan', 0)}万 | "
+            f"{markdown_escape(listing.get('room_type') or '-')} | {listing.get('area', 0)}㎡ | "
+            f"{rent} | {rent_yield_text} | {sample_count} | {markdown_escape(tags)} |"
+        )
+    if len(scored) > args.limit:
+        print(f"\n... 还有 {len(scored) - args.limit} 条候选结果")
+
+
 def recommend_listings(args):
     listings = load_listings()
     if not listings:
@@ -342,6 +379,10 @@ def recommend_listings(args):
         args.weight_condition,
         args.weight_school,
     ])
+    if getattr(args, "output_format", "detail") == "markdown":
+        print_markdown_results(scored, args, max_score, filtered)
+        return
+
     print(f"\n🎯 找到 {len(scored)} 套候选房源（预算/硬条件过滤后，按出租投资评分排序）：")
     if filtered:
         print(f"   已按硬过滤排除 {len(filtered)} 条")
@@ -428,6 +469,7 @@ def add_arguments(parser):
     parser.add_argument("--ok-age", type=float, default=25, help="可接受房龄上限，默认25年")
 
     parser.add_argument("--limit", type=int, default=15, help="输出结果数量，默认15")
+    parser.add_argument("--format", dest="output_format", choices=["detail", "markdown"], default="detail", help="输出格式，默认detail；markdown会输出带链接表格")
 
 
 if __name__ == "__main__":
