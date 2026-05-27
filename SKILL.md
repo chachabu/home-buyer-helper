@@ -257,6 +257,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - URL 中包含 `su1` / `sf1` 时，`--current-chrome` 会自动标记近地铁 / 普通住宅；可额外传 `--budget-min` / `--budget-max` 作为本地价格保护。
 - 不要把无人在场的自动翻页作为默认方案；贝壳页码 URL 容易触发极验。需要多页时，用 `--auto-next` 从当前 Chrome 页开始连续读取，默认最多10页；到最后一页或触发验证时停止，触发验证则让用户在 Chrome 中过验证，页面稳定后继续执行。
 - `--current-chrome` 会等待列表 DOM 出现，避免 Chrome 标题/URL 已更新但列表内容尚未保存出来时误判为无列表。
+- 抓取结束后默认按评分展示前15名；如果本次 URL/参数命中 `su1` / `sf1`，榜单也只看近地铁 / 普通住宅；需要调整数量时用 `--recommend-limit <N>`，不想展示时用 `--no-recommend`。
 - 不带 `--auto-next` 时只读取当前页并提示可以翻页；`--open-next` 是旧参数，等同 `--auto-next`。
 - 如果用户已经保存了列表页 HTML，再用 `--html` 解析。
 - 不建议绕过验证码或高频请求；抓取失败时应提示用户使用人在回路流程。
@@ -269,7 +270,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - `scripts/add_listing.py` - 添加新房源（支持 --community 小区名 --metro-distance 地铁距离 --my-score 个人评分）
 - `scripts/update_status.py` - 更新房源状态
 - `scripts/list_listings.py` - 列出房源（支持筛选，展示：小区 / 名称 / 总价 / 面积 / 地铁距离 / 个人评分 / 状态 / 链接）
-- `scripts/recommend_listings.py` - 智能推荐房源
+- `scripts/recommend_listings.py` - 智能推荐房源；支持 `--only-near-subway` / `--only-ordinary-residence` 做硬过滤
 - `scripts/add_viewing.py` - 记录看房信息与评分
 - `scripts/calculate_budget.py` - 计算购房预算与月供
 - `scripts/compare_listings.py` - 生成对比表（含小区 / 距地铁 / 我的评分列）
@@ -277,7 +278,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - `scripts/parse_url.py` - 从网页链接解析房源；遇到验证码时建议改用交互式抓取
 - `scripts/parse_image.py` - 从图片识别房源信息（OCR）
 - `scripts/crawl_listings.py` - 从买房网站抓取房源；支持 `--html` 解析已保存列表页，贝壳/链家支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
-- `scripts/crawl_interactive.py` - 人在回路网页抓取；贝壳/链家严格反爬时优先用 `--current-chrome --auto-next` 从用户已手动筛选/过验证的当前页开始读取，默认最多10页，触发验证即停止；也支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
+- `scripts/crawl_interactive.py` - 人在回路网页抓取；贝壳/链家严格反爬时优先用 `--current-chrome --auto-next` 从用户已手动筛选/过验证的当前页开始读取，默认最多10页，触发验证即停止；抓取结束后默认展示评分前15名；也支持 `--near-subway`、`--ordinary-residence` 与 `--pages`
 
 ## 工作流
 
@@ -338,7 +339,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 
 ### 网站抓取
 1. 询问目标平台、城市、区域、预算
-2. 如果是贝壳/链家，优先让用户在系统 Chrome 中手动选好区域、价格、近地铁、普通住宅并停在目标起始页，然后调用 `scripts/crawl_interactive.py --platform 贝壳 --city <城市> --budget-min <最低总价> --budget-max <最高总价> --current-chrome --auto-next --save`，默认最多读10页；触发验证后让用户过验证再继续
+2. 如果是贝壳/链家，优先让用户在系统 Chrome 中手动选好区域、价格、近地铁、普通住宅并停在目标起始页，然后调用 `scripts/crawl_interactive.py --platform 贝壳 --city <城市> --budget-min <最低总价> --budget-max <最高总价> --current-chrome --auto-next --save`，默认最多读10页；触发验证后让用户过验证再继续；抓取结束后默认展示评分前15名
 3. 如果用户已经保存了页面 HTML，调用 `scripts/crawl_listings.py --platform 贝壳 --city <城市> --html <文件路径> --save`
 4. 只有在不需要登录/验证码时才直接调用 `scripts/crawl_listings.py`
 5. 显示抓取结果并确认保存

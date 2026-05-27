@@ -17,6 +17,7 @@ import webbrowser
 from html import unescape
 from urllib.parse import urlsplit, urlunsplit
 
+import recommend_listings as recommendation
 from listing_parsers import (
     DATA_DIR,
     append_unique_listings,
@@ -79,6 +80,7 @@ def crawl_interactive(args):
             page_listings = parse_beike_listings_html(html, city_code=code, source=source)
             is_near_subway = args.near_subway or "su1" in source_url
             is_ordinary_residence = args.ordinary_residence or "sf1" in source_url
+            _remember_recommend_scope(args, is_near_subway, is_ordinary_residence)
             page_listings = _filter_listings_by_args(page_listings, args, is_ordinary_residence)
             if remaining:
                 page_listings = page_listings[:remaining]
@@ -90,6 +92,7 @@ def crawl_interactive(args):
                 print(f"   第 {index}/{page_count} 页解析: {len(page_listings)} 条")
             listings.extend(page_listings)
         _preview_and_save(listings, args.save)
+        _recommend_after_crawl(args)
         return
 
     url = _fallback_url(args)
@@ -114,6 +117,7 @@ def crawl_current_chrome_pages(args, city_code, source):
     max_pages = max(1, args.max_pages or 1) if args.auto_next else 1
     all_listings = []
     processed_urls = set()
+    reached_result_end = False
 
     print(f"\n🔍 {args.platform} - 读取当前 Chrome 标签页")
     for page_index in range(1, max_pages + 1):
@@ -123,6 +127,11 @@ def crawl_current_chrome_pages(args, city_code, source):
             break
 
         current_url = current_page["url"]
+        _remember_recommend_scope(
+            args,
+            args.near_subway or "su1" in current_url,
+            args.ordinary_residence or "sf1" in current_url,
+        )
         print(f"\n📄 当前页 {page_index}/{max_pages}")
         print(f"   URL: {current_url}")
         print(f"   标题: {current_page['title']}")
@@ -139,6 +148,7 @@ def crawl_current_chrome_pages(args, city_code, source):
         if status == "beyond_last":
             total_page, current_page_num = _extract_page_numbers(current_page["html"])
             print(f"   ℹ️ 当前页超过结果总页数：第 {current_page_num} 页 / 共 {total_page} 页，停止读取。")
+            reached_result_end = True
             break
         if status != "list":
             print("   ⚠️ 当前页不是可解析列表页，停止读取。")
@@ -147,6 +157,7 @@ def crawl_current_chrome_pages(args, city_code, source):
         page_listings = parse_beike_listings_html(current_page["html"], city_code=city_code, source=source)
         is_near_subway = args.near_subway or "su1" in current_url
         is_ordinary_residence = args.ordinary_residence or "sf1" in current_url
+        _remember_recommend_scope(args, is_near_subway, is_ordinary_residence)
         page_listings = _filter_listings_by_args(page_listings, args, is_ordinary_residence)
         if args.limit:
             remaining = args.limit - len(all_listings)
@@ -199,8 +210,11 @@ def crawl_current_chrome_pages(args, city_code, source):
 
     if all_listings:
         _preview_and_save(all_listings, args.save)
+        _recommend_after_crawl(args)
     else:
         print("\nℹ️ 本次没有可保存的房源。")
+        if reached_result_end:
+            _recommend_after_crawl(args)
 
 
 def _load_html_with_human_browser(url, args):
@@ -270,6 +284,30 @@ def _print_next_page_prompt(command, next_url):
     print(f"   下一页稳定显示列表后，重复执行: {command}")
     print(f"   也可以重新执行并加 --auto-next，让脚本从当前页开始最多读 10 页；触发验证时交给人处理。")
     print(f"   下一页 URL: {next_url}")
+
+
+def _recommend_after_crawl(args):
+    if args.no_recommend:
+        return
+    print(f"\n🏁 抓取结束，按评分展示前 {args.recommend_limit} 名：")
+    parser = argparse.ArgumentParser(add_help=False)
+    recommendation.add_arguments(parser)
+    rec_args = parser.parse_args([])
+    rec_args.budget_min = args.budget_min
+    rec_args.budget_max = args.budget_max
+    rec_args.limit = args.recommend_limit
+    rec_args.only_near_subway = args.near_subway or getattr(args, "_recommend_near_subway", False)
+    rec_args.only_ordinary_residence = (
+        args.ordinary_residence or getattr(args, "_recommend_ordinary_residence", False)
+    )
+    recommendation.recommend_listings(rec_args)
+
+
+def _remember_recommend_scope(args, near_subway=False, ordinary_residence=False):
+    if near_subway:
+        args._recommend_near_subway = True
+    if ordinary_residence:
+        args._recommend_ordinary_residence = True
 
 
 def _current_chrome_command(args):
@@ -479,6 +517,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-pages", type=int, default=10, help="--auto-next 最多读取页数，默认10")
     parser.add_argument("--next-wait-seconds", type=float, default=2.0, help="--auto-next 打开下一页后等待秒数，默认2")
     parser.add_argument("--current-wait-seconds", type=float, default=8.0, help="--current-chrome 等待列表 DOM 出现的秒数，默认8")
+    parser.add_argument("--recommend-limit", type=int, default=15, help="抓取结束后按评分展示前N名，默认15")
+    parser.add_argument("--no-recommend", action="store_true", help="抓取结束后不展示评分排名")
     parser.add_argument("--profile-dir", help="Playwright 浏览器用户数据目录，默认 data/browser-profile")
     parser.add_argument("--keep-browser", action="store_true", help="解析后不关闭 Playwright 浏览器")
     args = parser.parse_args()

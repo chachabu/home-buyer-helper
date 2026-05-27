@@ -69,6 +69,13 @@ def is_near_subway(listing):
     return "近地铁" in text
 
 
+def is_ordinary_residence(listing):
+    if listing.get("ordinary_residence"):
+        return True
+    text = " ".join(str(listing.get(key, "")) for key in ("property_type", "house_type"))
+    return "普通住宅" in text
+
+
 def is_commercial_like(listing):
     text = " ".join(
         str(listing.get(key, ""))
@@ -98,6 +105,10 @@ def passes_hard_filters(listing, args):
             return False, "缺少地铁距离"
         if metro_distance > args.max_metro_distance:
             return False, f"距地铁{metro_distance:g}米超过上限{args.max_metro_distance:g}米"
+    if getattr(args, "only_near_subway", False) and not is_near_subway(listing):
+        return False, "非近地铁房源"
+    if getattr(args, "only_ordinary_residence", False) and not is_ordinary_residence(listing):
+        return False, "非普通住宅"
     if not args.include_commercial and is_commercial_like(listing):
         return False, "商业类房源默认排除"
     return True, ""
@@ -376,8 +387,10 @@ def add_arguments(parser):
     parser.add_argument("--budget-min", type=float, help="最低总价（万元），硬过滤")
     parser.add_argument("--budget-max", type=float, help="最高总价（万元），硬过滤")
     parser.add_argument("--min-monthly-rent", type=float, help="最低月租（元），硬过滤；不填则只参与评分/标签")
-    parser.add_argument("--min-rent-yield", type=float, help="最低年化租售比（%），硬过滤；不填则只参与评分/标签")
+    parser.add_argument("--min-rent-yield", type=float, help="最低年化租售比（%%），硬过滤；不填则只参与评分/标签")
     parser.add_argument("--max-metro-distance", type=float, help="最大距地铁距离（米），硬过滤；不填则只参与评分")
+    parser.add_argument("--only-near-subway", action="store_true", help="只推荐近地铁记录；贝壳su1抓取结果适用")
+    parser.add_argument("--only-ordinary-residence", action="store_true", help="只推荐普通住宅记录；贝壳sf1抓取结果适用")
     parser.add_argument("--include-commercial", action="store_true", help="包含商业类房源；默认排除")
 
     # 默认权重总和 100，执行 skill 时可按需覆盖。
@@ -390,8 +403,8 @@ def add_arguments(parser):
 
     # 租金/租售比参数。
     parser.add_argument("--target-monthly-rent", type=float, default=5000, help="高租金/评分参考月租，默认5000元")
-    parser.add_argument("--target-rent-yield", type=float, default=2.0, help="高租售比阈值，默认2.0%")
-    parser.add_argument("--strong-rent-yield", type=float, default=2.5, help="强租售比阈值，默认2.5%")
+    parser.add_argument("--target-rent-yield", type=float, default=2.0, help="高租售比阈值，默认2.0%%")
+    parser.add_argument("--strong-rent-yield", type=float, default=2.5, help="强租售比阈值，默认2.5%%")
     parser.add_argument("--rent-monthly-ratio", type=float, default=0.45, help="租金收益中月租占比，默认0.45，剩余为租售比")
 
     # 地铁参数。
@@ -409,7 +422,7 @@ def add_arguments(parser):
     parser.add_argument("--good-age", type=float, default=15, help="较好房龄上限，默认15年")
     parser.add_argument("--ok-age", type=float, default=25, help="可接受房龄上限，默认25年")
 
-    parser.add_argument("--limit", type=int, default=8, help="输出结果数量，默认8")
+    parser.add_argument("--limit", type=int, default=15, help="输出结果数量，默认15")
 
 
 if __name__ == "__main__":

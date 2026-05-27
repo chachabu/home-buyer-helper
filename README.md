@@ -231,6 +231,8 @@ python3 scripts/crawl_interactive.py \
 
 # URL 中包含 su1 / sf1 时会自动标记近地铁 / 普通住宅。
 # 读取当前页会等待列表 DOM 出现；--auto-next 默认最多连续读取10页，遇到最后一页或触发验证即停止。
+# 抓取结束后会按评分展示前15名；如果本次 URL 命中 su1 / sf1，榜单也只看近地铁 / 普通住宅。
+# 可用 --recommend-limit 调整展示数量，或用 --no-recommend 关闭。
 
 # 如果已经在浏览器中保存了列表页 HTML
 python3 scripts/crawl_listings.py \
