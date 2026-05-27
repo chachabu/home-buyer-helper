@@ -33,19 +33,10 @@ def crawl_interactive(args):
     if args.platform in ("贝壳", "链家"):
         code = resolve_city_code(args.city)
         source = "贝壳找房" if args.platform == "贝壳" else "链家"
-        current_page = None
 
         if args.current_chrome:
-            print(f"\n🔍 {args.platform} - 读取当前 Chrome 标签页")
-            current_page = _load_current_chrome_page(args)
-            if not current_page:
-                print("❌ 未能读取当前 Chrome 页面")
-                return
-            html_pages = [current_page["html"]]
-            source_urls = [current_page["url"]]
-            page_count = 1
-            print(f"   URL: {current_page['url']}")
-            print(f"   标题: {current_page['title']}")
+            crawl_current_chrome_pages(args, code, source)
+            return
         else:
             page_count = max(1, args.pages or 1)
             urls = [
@@ -97,8 +88,6 @@ def crawl_interactive(args):
                 print(f"   第 {index}/{page_count} 页解析: {len(page_listings)} 条")
             listings.extend(page_listings)
         _preview_and_save(listings, args.save)
-        if args.current_chrome and current_page:
-            _prompt_next_page(current_page["url"], args)
         return
 
     url = _fallback_url(args)
@@ -116,6 +105,89 @@ def _fallback_url(args):
         city_map = {"北京": "beijing", "上海": "shanghai", "广州": "guangzhou", "深圳": "shenzhen"}
         return f"https://{city_map.get(args.city, 'beijing')}.fang.anjuke.com/"
     return "https://www.ke.com/"
+
+
+def crawl_current_chrome_pages(args, city_code, source):
+    command = _current_chrome_command(args)
+    max_pages = max(1, args.max_pages or 1) if args.auto_next else 1
+    all_listings = []
+    processed_urls = set()
+
+    print(f"\n🔍 {args.platform} - 读取当前 Chrome 标签页")
+    for page_index in range(1, max_pages + 1):
+        current_page = _load_current_chrome_page(args)
+        if not current_page:
+            print("❌ 未能读取当前 Chrome 页面")
+            break
+
+        current_url = current_page["url"]
+        print(f"\n📄 当前页 {page_index}/{max_pages}")
+        print(f"   URL: {current_url}")
+        print(f"   标题: {current_page['title']}")
+
+        if current_url in processed_urls:
+            print("   ⚠️ 当前 URL 已读取过，停止以避免重复循环。")
+            break
+        processed_urls.add(current_url)
+
+        status = _html_page_status(current_page["html"])
+        if status == "captcha":
+            print("   ⚠️ 当前页是验证页。请在 Chrome 中完成验证，页面回到列表后再执行读取命令。")
+            break
+        if status != "list":
+            print("   ⚠️ 当前页不是可解析列表页，停止读取。")
+            break
+
+        page_listings = parse_beike_listings_html(current_page["html"], city_code=city_code, source=source)
+        is_near_subway = args.near_subway or "su1" in current_url
+        is_ordinary_residence = args.ordinary_residence or "sf1" in current_url
+        page_listings = _filter_listings_by_args(page_listings, args, is_ordinary_residence)
+        if args.limit:
+            remaining = args.limit - len(all_listings)
+            if remaining <= 0:
+                print("   已达到 --limit 上限，停止读取。")
+                break
+            page_listings = page_listings[:remaining]
+        if is_near_subway:
+            mark_near_subway_listings(page_listings, label=f"近地铁（{source}筛选）")
+        if is_ordinary_residence:
+            mark_ordinary_residence_listings(page_listings)
+
+        print(f"   解析: {len(page_listings)} 条")
+        all_listings.extend(page_listings)
+
+        if args.limit and len(all_listings) >= args.limit:
+            print("   已达到 --limit 上限，停止读取。")
+            break
+
+        next_url = _build_next_page_url(current_url)
+        if not next_url:
+            print("   当前 URL 无法推断下一页，停止读取。")
+            break
+        if not args.auto_next:
+            _print_next_page_prompt(command, next_url)
+            break
+        if page_index >= max_pages:
+            print(f"   已达到 --max-pages={max_pages}，停止读取。")
+            break
+
+        print(f"\n➡️ 打开下一页: {next_url}")
+        subprocess.run(["open", "-a", args.chrome_app, next_url], check=False)
+        time.sleep(max(0.5, args.next_wait_seconds))
+        try:
+            active_url = _run_osascript(f'tell application "{_applescript_string(args.chrome_app)}" to get URL of active tab of front window')
+            active_title = _run_osascript(f'tell application "{_applescript_string(args.chrome_app)}" to get title of active tab of front window')
+        except Exception as e:
+            print(f"   ⚠️ 已打开下一页，但无法读取 Chrome 状态: {e}")
+            print(f"   页面稳定后，重复执行: {command}")
+            break
+        print(f"   当前 URL: {active_url}")
+        print(f"   当前标题: {active_title}")
+        if _looks_like_captcha(active_url, active_title):
+            print("   ⚠️ 已触发验证。请在 Chrome 里完成验证；页面回到列表后再执行读取命令。")
+            break
+
+    _preview_and_save(all_listings, args.save)
 
 
 def _load_html_with_human_browser(url, args):
@@ -180,36 +252,11 @@ def _applescript_string(value):
     return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
 
-def _prompt_next_page(current_url, args):
-    next_url = _build_next_page_url(current_url)
-    if not next_url:
-        print("\nℹ️ 当前页不是可推断下一页的二手房列表页；不提示翻页。")
-        return
-
-    command = _current_chrome_command(args)
+def _print_next_page_prompt(command, next_url):
     print("\n➡️ 当前页处理完了，可以在 Chrome 里手动点下一页。")
     print(f"   下一页稳定显示列表后，重复执行: {command}")
-    if not args.open_next:
-        print("   也可以加 --open-next 让脚本只尝试打开下一页一次；如果触发验证，再由人处理。")
-        return
-
-    print(f"\n➡️ 尝试打开下一页: {next_url}")
-    subprocess.run(["open", "-a", args.chrome_app, next_url], check=False)
-    time.sleep(max(0.5, args.next_wait_seconds))
-    try:
-        active_url = _run_osascript(f'tell application "{_applescript_string(args.chrome_app)}" to get URL of active tab of front window')
-        active_title = _run_osascript(f'tell application "{_applescript_string(args.chrome_app)}" to get title of active tab of front window')
-    except Exception as e:
-        print(f"   ⚠️ 已打开下一页，但无法读取 Chrome 状态: {e}")
-        print(f"   页面稳定后，重复执行: {command}")
-        return
-
-    print(f"   当前 URL: {active_url}")
-    print(f"   当前标题: {active_title}")
-    if _looks_like_captcha(active_url, active_title):
-        print("   ⚠️ 已触发验证。请在 Chrome 里完成验证；页面回到列表后再执行上面的读取命令。")
-    else:
-        print("   ✅ 下一页看起来已打开。确认是列表页后，执行上面的读取命令。")
+    print(f"   也可以重新执行并加 --auto-next，让脚本从当前页开始最多读 10 页；触发验证时交给人处理。")
+    print(f"   下一页 URL: {next_url}")
 
 
 def _current_chrome_command(args):
@@ -227,6 +274,10 @@ def _current_chrome_command(args):
     parts.append("--current-chrome")
     if args.save:
         parts.append("--save")
+    if args.auto_next:
+        parts.append("--auto-next")
+        if args.max_pages != 10:
+            parts.extend(["--max-pages", str(args.max_pages)])
     return " ".join(parts)
 
 
@@ -390,10 +441,14 @@ if __name__ == "__main__":
     parser.add_argument("--html", help="直接解析已保存的列表页 HTML")
     parser.add_argument("--current-chrome", action="store_true", help="读取当前 Google Chrome 标签页；适合手动筛选/翻页/过验证后导入")
     parser.add_argument("--chrome-app", default="Google Chrome", help="--current-chrome 使用的浏览器应用名，默认 Google Chrome")
-    parser.add_argument("--open-next", action="store_true", help="--current-chrome 读取后尝试打开下一页一次；触发验证时交给人处理")
-    parser.add_argument("--next-wait-seconds", type=float, default=2.0, help="--open-next 打开下一页后等待秒数，默认2")
+    parser.add_argument("--auto-next", action="store_true", help="--current-chrome 读取后自动打开并读取后续页；默认最多10页，触发验证时停止")
+    parser.add_argument("--open-next", action="store_true", help="兼容旧参数；等同于 --auto-next")
+    parser.add_argument("--max-pages", type=int, default=10, help="--auto-next 最多读取页数，默认10")
+    parser.add_argument("--next-wait-seconds", type=float, default=2.0, help="--auto-next 打开下一页后等待秒数，默认2")
     parser.add_argument("--current-wait-seconds", type=float, default=8.0, help="--current-chrome 等待列表 DOM 出现的秒数，默认8")
     parser.add_argument("--profile-dir", help="Playwright 浏览器用户数据目录，默认 data/browser-profile")
     parser.add_argument("--keep-browser", action="store_true", help="解析后不关闭 Playwright 浏览器")
     args = parser.parse_args()
+    if args.open_next:
+        args.auto_next = True
     crawl_interactive(args)
