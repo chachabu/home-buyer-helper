@@ -104,7 +104,7 @@ def list_listings(args):
             print(f"学位情况:      {listing.get('school_notes')}")
         print(f"交通:          {listing.get('transport') or '-'}")
         if listing.get("nearest_metro"):
-            print(f"最近地铁:      {listing.get('nearest_metro')}")
+            print(f"邻近地铁:      {listing.get('nearest_metro')}")
         if listing.get("metro_distance"):
             print(f"距地铁:        {listing['metro_distance']}米")
         if listing.get("monthly_rent"):

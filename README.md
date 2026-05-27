@@ -3,7 +3,7 @@
 > 用 AI 帮你找房、比价、算月供、避坑 —— 买房最耗时的这些事，一句话交给 OpenClaw 自主完成。
 
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Skill-blue?logo=openclaw)](https://github.com/chachabu/openclaw)
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-green)](https://python.org)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-green)](https://python.org)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ---
@@ -65,7 +65,9 @@ AI 帮你把所有看中的房源整理得井井有条：
 AI：从已有房源中筛选，按匹配度打分排序，给出推荐理由
 ```
 
-评分维度：**价格合理性 · 通勤便利性 · 学区匹配度 · 房龄 · 升值空间**
+默认评分维度：**通勤便利性 · 户型面积适租性 · 流动性 · 房龄装修 · 学区参考**
+
+预算只做硬过滤。租金和租售比默认只展示或作为参考标签，不参与评分；需要时可通过参数做硬过滤或显式设置租金权重。
 
 ---
 
@@ -166,7 +168,7 @@ python3 scripts/add_listing.py \
   --school-district "<学区>" \
   --school-tier normal \
   --transport "<交通描述>" \
-  --nearest-metro "<最近地铁站>" \
+  --nearest-metro "<邻近地铁站>" \
   --metro-distance <距地铁米数> \
   --monthly-rent <参考月租元> \
   --rent-source "<租金来源>" \
@@ -259,12 +261,17 @@ home-buyer-helper/
 ├── SKILL.md              # OpenClaw 技能定义
 ├── _meta.json            # 元数据
 ├── README.md             # 本文件
+├── AGENTS.md             # Codex/agent 项目约定
+├── docs/
+│   ├── architecture.md        # 架构与数据流
+│   ├── operator-runbook.md    # 抓取/补租/推荐操作手册
+│   └── handoff-2026-05-27.md  # 本阶段交接记录
 ├── references/
 │   └── pitfall-guide.md  # 买房避坑指南
 ├── data/                 # 房源 & 看房数据（本地保存，默认不提交）
 │   ├── listings.json     # 房源数据
 │   └── viewings.json     # 看房记录
-└── scripts/              # 功能脚本（Python 3.9+，纯标准库）
+└── scripts/              # 功能脚本（Python 3.8+，纯标准库）
     ├── add_listing.py        # 添加新房源
     ├── update_status.py      # 更新房源状态
     ├── add_viewing.py        # 记录看房
@@ -293,7 +300,7 @@ home-buyer-helper/
    贝壳/链家/安居客 → 抓取 → 标准化录入 → 本地数据库
 
 ③ 筛选 + 对比
-   AI 按预算/户型/学区/通勤排序 → 生成对比表 → 推荐 TOP 5
+   AI 按预算硬过滤，再按通勤/户型/流动性/房龄排序 → 生成对比表 → 推荐 TOP 15
 
 ④ 看房 + 打分
    现场用 AI 记笔记 → 采光/噪音/户型打分 → 自动汇总
@@ -306,7 +313,7 @@ home-buyer-helper/
 
 ## 🔧 环境要求
 
-- **Python** ≥ 3.9（macOS 自带 3.9+ 即可）
+- **Python** ≥ 3.8
 - **OpenClaw** ≥ 2025.0（可选，用于技能自动加载）
 - 核心脚本纯标准库实现
 - 人在回路浏览器模式可选安装 Playwright：`python3 -m pip install playwright && python3 -m playwright install chromium`

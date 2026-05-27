@@ -58,8 +58,8 @@ def add_listing(args):
         "school_notes": args.school_notes or "",             # 学位占用情况
         "transport": args.transport or "",
         "facilities": args.facilities or "",
-        "nearest_metro": args.nearest_metro or "",            # 最近地铁站
-        "metro_distance": args.metro_distance or "",  # 最近地铁站距离（米）
+        "nearest_metro": args.nearest_metro or "",            # 邻近地铁站
+        "metro_distance": args.metro_distance or "",  # 邻近地铁站距离（米）
         "monthly_rent": args.monthly_rent or 0,        # 参考月租（元/月）
         "rent_source": args.rent_source or "",         # 租金来源
         "mortgage_balance": args.mortgage_balance or 0,      # 剩余贷款（万）
@@ -129,8 +129,8 @@ if __name__ == "__main__":
     parser.add_argument("--agent-fee", type=float, help="中介费（万元）")
     parser.add_argument("--transport", help="交通情况")
     parser.add_argument("--facilities", help="周边配套")
-    parser.add_argument("--nearest-metro", help="最近地铁站")
-    parser.add_argument("--metro-distance", type=int, help="最近地铁站距离（米）")
+    parser.add_argument("--nearest-metro", help="邻近地铁站")
+    parser.add_argument("--metro-distance", type=int, help="邻近地铁站距离（米）")
     parser.add_argument("--monthly-rent", type=float, help="参考月租（元/月）")
     parser.add_argument("--rent-source", help="租金来源（如：贝壳租房/链家租房/手动估算）")
     parser.add_argument("--contact", help="中介/房东联系方式")

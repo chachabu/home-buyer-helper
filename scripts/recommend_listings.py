@@ -490,6 +490,6 @@ def add_arguments(parser):
 
 
 if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(description="智能推荐房源（出租投资/近地铁优先）")
+    arg_parser = argparse.ArgumentParser(description="智能推荐房源（近地铁/适租性优先）")
     add_arguments(arg_parser)
     recommend_listings(arg_parser.parse_args())
