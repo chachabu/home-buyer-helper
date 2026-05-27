@@ -2,9 +2,10 @@
 """
 智能推荐房源（买房版）。
 
-默认 rental 模式用于筛选适合上班族租客的投资型房源：
+默认 rental 模式用于筛选适合上班族租客的房源：
 - 预算只做硬过滤，不参与评分
-- 租金、租售比、近地铁是核心评分项
+- 租金、租售比只展示或硬过滤，默认不参与评分
+- 近地铁、户型面积、流动性是核心评分项
 - 学区低权重，仅作为参考
 """
 
@@ -304,6 +305,8 @@ def calculate_match_score(listing, args):
     total = 0.0
     reasons = []
     for name, weight, fn in scorers:
+        if weight <= 0:
+            continue
         component, component_reasons = fn(listing, args)
         points = component * weight
         total += points
@@ -330,11 +333,11 @@ def markdown_link(label, url):
 
 
 def print_markdown_results(scored, args, max_score, filtered):
-    print(f"\n🎯 找到 {len(scored)} 套候选房源（预算/硬条件过滤后，按出租投资评分排序）")
+    print(f"\n🎯 找到 {len(scored)} 套候选房源（预算/硬条件过滤后，按非租金评分排序）")
     if filtered:
         print(f"已按硬过滤排除 {len(filtered)} 条")
     print()
-    print("| 排名 | 房源 | 分数 | 总价 | 户型 | 面积 | 估算月租 | 租售比 | 租金样本 | 标签 |")
+    print("| 排名 | 房源 | 分数 | 总价 | 户型 | 面积 | 估算月租 | 租售比 | 租金样本 | 参考标签 |")
     print("|---:|---|---:|---:|---|---:|---:|---:|---:|---|")
     for i, item in enumerate(scored[:args.limit], 1):
         listing = item["listing"]
@@ -396,7 +399,7 @@ def recommend_listings(args):
         print_markdown_results(scored, args, max_score, filtered)
         return
 
-    print(f"\n🎯 找到 {len(scored)} 套候选房源（预算/硬条件过滤后，按出租投资评分排序）：")
+    print(f"\n🎯 找到 {len(scored)} 套候选房源（预算/硬条件过滤后，按非租金评分排序）：")
     if filtered:
         print(f"   已按硬过滤排除 {len(filtered)} 条")
     print(f"   评分权重: 租金{args.weight_rent:g} 地铁{args.weight_metro:g} 适租{args.weight_rental_fit:g} 流动性{args.weight_liquidity:g} 房龄装修{args.weight_condition:g} 学区{args.weight_school:g}")
@@ -412,7 +415,7 @@ def recommend_listings(args):
         )
 
         print(f"\n【#{i}】{listing.get('community') or listing.get('name', '')}  {item['score']:.1f}/{max_score:g}分")
-        print(f"   标签: {tags}")
+        print(f"   参考标签: {tags}")
         print(f"   总价: {listing.get('price_wan', 0)}万  单价: {listing.get('unit_price', '-') or '-'}元/㎡")
         print(f"   租金: {monthly_rent:g}元/月  租售比: {rent_yield:.2f}%  来源: {listing.get('rent_source', '-') or '-'}")
         if listing.get("rent_per_sqm") or listing.get("rent_sample_count"):
@@ -446,26 +449,26 @@ def add_arguments(parser):
     parser.add_argument("--budget-min", type=float, help="最低总价（万元），硬过滤")
     parser.add_argument("--budget-max", type=float, help="最高总价（万元），硬过滤")
     parser.add_argument("--min-monthly-rent", type=float, help="最低月租（元），硬过滤；不填则只参与评分/标签")
-    parser.add_argument("--min-rent-yield", type=float, help="最低年化租售比（%%），硬过滤；不填则只参与评分/标签")
+    parser.add_argument("--min-rent-yield", type=float, help="最低年化租售比（%%），硬过滤；不填则只展示/打标签")
     parser.add_argument("--max-metro-distance", type=float, help="最大距地铁距离（米），硬过滤；不填则只参与评分")
     parser.add_argument("--only-near-subway", action="store_true", help="只推荐近地铁记录；贝壳su1抓取结果适用")
     parser.add_argument("--only-ordinary-residence", action="store_true", help="只推荐普通住宅记录；贝壳sf1抓取结果适用")
     parser.add_argument("--exclude-keywords", default="", help="排除小区/标题关键词，逗号分隔，如 大厦,商住,办公")
     parser.add_argument("--include-commercial", action="store_true", help="包含商业类房源；默认排除")
 
-    # 默认权重总和 100，执行 skill 时可按需覆盖。
-    parser.add_argument("--weight-rent", type=float, default=35, help="租金收益权重，默认35")
-    parser.add_argument("--weight-metro", type=float, default=30, help="地铁/通勤权重，默认30")
-    parser.add_argument("--weight-rental-fit", type=float, default=15, help="户型面积适租权重，默认15")
-    parser.add_argument("--weight-liquidity", type=float, default=10, help="流动性/交易属性权重，默认10")
-    parser.add_argument("--weight-condition", type=float, default=5, help="房龄装修权重，默认5")
+    # 默认权重总和 100；租金/租售比默认只展示，不参与评分。
+    parser.add_argument("--weight-rent", type=float, default=0, help="租金收益权重，默认0（不参与评分）")
+    parser.add_argument("--weight-metro", type=float, default=45, help="地铁/通勤权重，默认45")
+    parser.add_argument("--weight-rental-fit", type=float, default=25, help="户型面积适租权重，默认25")
+    parser.add_argument("--weight-liquidity", type=float, default=15, help="流动性/交易属性权重，默认15")
+    parser.add_argument("--weight-condition", type=float, default=10, help="房龄装修权重，默认10")
     parser.add_argument("--weight-school", type=float, default=5, help="学区参考权重，默认5")
 
-    # 租金/租售比参数。
-    parser.add_argument("--target-monthly-rent", type=float, default=5000, help="高租金/评分参考月租，默认5000元")
+    # 租金/租售比参数：默认只影响标签；只有 weight-rent > 0 时才影响评分。
+    parser.add_argument("--target-monthly-rent", type=float, default=5000, help="高租金标签参考月租，默认5000元")
     parser.add_argument("--target-rent-yield", type=float, default=2.0, help="高租售比阈值，默认2.0%%")
     parser.add_argument("--strong-rent-yield", type=float, default=2.5, help="强租售比阈值，默认2.5%%")
-    parser.add_argument("--rent-monthly-ratio", type=float, default=0.45, help="租金收益中月租占比，默认0.45，剩余为租售比")
+    parser.add_argument("--rent-monthly-ratio", type=float, default=0.45, help="weight-rent>0时月租占比，默认0.45，剩余为租售比")
 
     # 地铁参数。
     parser.add_argument("--metro-strong-distance", type=float, default=500, help="近地铁强推荐距离，默认500米")

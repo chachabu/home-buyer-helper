@@ -201,23 +201,18 @@ python3 scripts/compare_listings.py --ids <房源ID1> <房源ID2> <房源ID3>
 # 智能推荐：默认 rental 模式，预算是硬过滤，不参与评分
 python3 scripts/recommend_listings.py \
   --budget-max <预算> \
-  --target-monthly-rent 5000 \
-  --target-rent-yield 2.0 \
-  --strong-rent-yield 2.5 \
   --max-metro-distance 800 \
   --format markdown
 
-# 调整权重和阈值：所有评分参数都可在执行时覆盖
+# 调整权重和阈值：默认租金/租售比不参与评分，所有评分参数都可在执行时覆盖
 python3 scripts/recommend_listings.py \
   --budget-max 500 \
-  --weight-rent 35 \
-  --weight-metro 35 \
-  --weight-rental-fit 12 \
-  --weight-liquidity 8 \
-  --weight-condition 5 \
+  --weight-rent 0 \
+  --weight-metro 45 \
+  --weight-rental-fit 25 \
+  --weight-liquidity 15 \
+  --weight-condition 10 \
   --weight-school 5 \
-  --target-monthly-rent 5500 \
-  --target-rent-yield 2.2 \
   --metro-strong-distance 500 \
   --metro-good-distance 800
 
