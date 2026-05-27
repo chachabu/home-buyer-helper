@@ -7,12 +7,14 @@
 """
 
 import argparse
+import json
 import os
 import re
 import subprocess
 import tempfile
 import time
 import webbrowser
+from html import unescape
 from urllib.parse import urlsplit, urlunsplit
 
 from listing_parsers import (
@@ -134,6 +136,10 @@ def crawl_current_chrome_pages(args, city_code, source):
         if status == "captcha":
             print("   ⚠️ 当前页是验证页。请在 Chrome 中完成验证，页面回到列表后再执行读取命令。")
             break
+        if status == "beyond_last":
+            total_page, current_page_num = _extract_page_numbers(current_page["html"])
+            print(f"   ℹ️ 当前页超过结果总页数：第 {current_page_num} 页 / 共 {total_page} 页，停止读取。")
+            break
         if status != "list":
             print("   ⚠️ 当前页不是可解析列表页，停止读取。")
             break
@@ -164,6 +170,10 @@ def crawl_current_chrome_pages(args, city_code, source):
         if not next_url:
             print("   当前 URL 无法推断下一页，停止读取。")
             break
+        total_page, current_page_num = _extract_page_numbers(current_page["html"])
+        if total_page and current_page_num and current_page_num >= total_page:
+            print(f"   已到最后一页：第 {current_page_num} 页 / 共 {total_page} 页，停止读取。")
+            break
         if not args.auto_next:
             _print_next_page_prompt(command, next_url)
             break
@@ -187,7 +197,10 @@ def crawl_current_chrome_pages(args, city_code, source):
             print("   ⚠️ 已触发验证。请在 Chrome 里完成验证；页面回到列表后再执行读取命令。")
             break
 
-    _preview_and_save(all_listings, args.save)
+    if all_listings:
+        _preview_and_save(all_listings, args.save)
+    else:
+        print("\nℹ️ 本次没有可保存的房源。")
 
 
 def _load_html_with_human_browser(url, args):
@@ -290,9 +303,29 @@ def _html_page_status(html):
         return "list"
     if any(term in (html or "") for term in ("人机验证", "CAPTCHA", "hip.ke.com/captcha")):
         return "captcha"
+    total_page, current_page = _extract_page_numbers(html)
+    if total_page and current_page and current_page > total_page:
+        return "beyond_last"
     if any(term in (html or "") for term in ("暂无房源", "没有找到", "换个条件试试")):
         return "empty"
     return "unknown"
+
+
+def _extract_page_numbers(html):
+    match = re.search(r"page-data='([^']+)'", html or "")
+    if not match:
+        return 0, 0
+    raw = unescape(match.group(1))
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        total = re.search(r'"totalPage"\s*:\s*(\d+)', raw)
+        current = re.search(r'"curPage"\s*:\s*(\d+)', raw)
+        return (
+            int(total.group(1)) if total else 0,
+            int(current.group(1)) if current else 0,
+        )
+    return int(data.get("totalPage") or 0), int(data.get("curPage") or 0)
 
 
 def _build_next_page_url(url):

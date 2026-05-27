@@ -255,7 +255,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 **贝壳/链家验证码处理优先级：**
 - 严格反爬场景优先让用户在系统 Chrome 中手动筛选、翻页、登录和过验证，然后调用 `scripts/crawl_interactive.py --current-chrome --save` 读取当前标签页。
 - URL 中包含 `su1` / `sf1` 时，`--current-chrome` 会自动标记近地铁 / 普通住宅；可额外传 `--budget-min` / `--budget-max` 作为本地价格保护。
-- 不要把无人在场的自动翻页作为默认方案；贝壳页码 URL 容易触发极验。需要多页时，用 `--auto-next` 从当前 Chrome 页开始连续读取，默认最多10页；触发验证时停止，让用户在 Chrome 中过验证，页面稳定后继续执行。
+- 不要把无人在场的自动翻页作为默认方案；贝壳页码 URL 容易触发极验。需要多页时，用 `--auto-next` 从当前 Chrome 页开始连续读取，默认最多10页；到最后一页或触发验证时停止，触发验证则让用户在 Chrome 中过验证，页面稳定后继续执行。
 - `--current-chrome` 会等待列表 DOM 出现，避免 Chrome 标题/URL 已更新但列表内容尚未保存出来时误判为无列表。
 - 不带 `--auto-next` 时只读取当前页并提示可以翻页；`--open-next` 是旧参数，等同 `--auto-next`。
 - 如果用户已经保存了列表页 HTML，再用 `--html` 解析。
