@@ -256,6 +256,7 @@ facilities、contact、pros、cons、source、url、tax_estimate、agent_fee
 - 严格反爬场景优先让用户在系统 Chrome 中手动筛选、翻页、登录和过验证，然后调用 `scripts/crawl_interactive.py --current-chrome --save` 读取当前标签页。
 - URL 中包含 `su1` / `sf1` 时，`--current-chrome` 会自动标记近地铁 / 普通住宅；可额外传 `--budget-min` / `--budget-max` 作为本地价格保护。
 - 不要把自动翻页作为默认方案；贝壳页码 URL 容易触发极验。需要多页时，让用户手动点下一页，页面稳定后重复读取当前 Chrome 页。
+- `--current-chrome` 会等待列表 DOM 出现，避免 Chrome 标题/URL 已更新但列表内容尚未保存出来时误判为无列表。
 - 读取当前页后脚本会提示可以翻页；如用户希望脚本先试一次下一页，可加 `--open-next`。它只打开下一页一次，若触发验证则提示用户在 Chrome 中处理，验证后再重复 `--current-chrome` 读取。
 - 如果用户已经保存了列表页 HTML，再用 `--html` 解析。
 - 不建议绕过验证码或高频请求；抓取失败时应提示用户使用人在回路流程。

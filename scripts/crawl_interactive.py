@@ -130,16 +130,28 @@ def _load_current_chrome_page(args):
     try:
         url = _run_osascript(f'tell application "{app_name}" to get URL of active tab of front window')
         title = _run_osascript(f'tell application "{app_name}" to get title of active tab of front window')
-        _run_osascript(
-            f'tell application "{app_name}" to save active tab of front window '
-            f'in POSIX file "{_applescript_string(html_path)}" as "only html"'
-        )
-        for _ in range(30):
-            if os.path.exists(html_path) and os.path.getsize(html_path) > 0:
+        html = ""
+        deadline = time.time() + max(0.5, args.current_wait_seconds)
+        attempts = 0
+        while True:
+            attempts += 1
+            _run_osascript(
+                f'tell application "{app_name}" to save active tab of front window '
+                f'in POSIX file "{_applescript_string(html_path)}" as "only html"'
+            )
+            for _ in range(30):
+                if os.path.exists(html_path) and os.path.getsize(html_path) > 0:
+                    break
+                time.sleep(0.1)
+            with open(html_path, "r", encoding="utf-8", errors="replace") as f:
+                html = f.read()
+
+            status = _html_page_status(html)
+            if status in ("list", "captcha") or time.time() >= deadline:
+                if attempts > 1:
+                    print(f"   页面就绪检查: {attempts} 次，状态 {status}")
                 break
-            time.sleep(0.1)
-        with open(html_path, "r", encoding="utf-8", errors="replace") as f:
-            html = f.read()
+            time.sleep(0.5)
         return {"url": url, "title": title, "html": html}
     except Exception as e:
         print(f"⚠️ 读取 Chrome 当前页失败: {e}")
@@ -220,6 +232,16 @@ def _current_chrome_command(args):
 
 def _looks_like_captcha(url, title):
     return "hip.ke.com/captcha" in (url or "") or (title or "").strip().upper() == "CAPTCHA"
+
+
+def _html_page_status(html):
+    if "sellListContent" in (html or ""):
+        return "list"
+    if any(term in (html or "") for term in ("人机验证", "CAPTCHA", "hip.ke.com/captcha")):
+        return "captcha"
+    if any(term in (html or "") for term in ("暂无房源", "没有找到", "换个条件试试")):
+        return "empty"
+    return "unknown"
 
 
 def _build_next_page_url(url):
@@ -370,6 +392,7 @@ if __name__ == "__main__":
     parser.add_argument("--chrome-app", default="Google Chrome", help="--current-chrome 使用的浏览器应用名，默认 Google Chrome")
     parser.add_argument("--open-next", action="store_true", help="--current-chrome 读取后尝试打开下一页一次；触发验证时交给人处理")
     parser.add_argument("--next-wait-seconds", type=float, default=2.0, help="--open-next 打开下一页后等待秒数，默认2")
+    parser.add_argument("--current-wait-seconds", type=float, default=8.0, help="--current-chrome 等待列表 DOM 出现的秒数，默认8")
     parser.add_argument("--profile-dir", help="Playwright 浏览器用户数据目录，默认 data/browser-profile")
     parser.add_argument("--keep-browser", action="store_true", help="解析后不关闭 Playwright 浏览器")
     args = parser.parse_args()
