@@ -226,9 +226,11 @@ python3 scripts/crawl_interactive.py \
   --city 上海 \
   --budget-max 250 \
   --current-chrome \
+  --open-next \
   --save
 
-# URL 中包含 su1 / sf1 时会自动标记近地铁 / 普通住宅；手动翻到下一页后重复执行即可。
+# URL 中包含 su1 / sf1 时会自动标记近地铁 / 普通住宅。
+# 读取完当前页后会提示可以翻页；--open-next 只尝试打开下一页一次，触发验证则由人处理。
 
 # 如果已经在浏览器中保存了列表页 HTML
 python3 scripts/crawl_listings.py \

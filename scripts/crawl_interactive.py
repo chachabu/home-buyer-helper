@@ -8,10 +8,12 @@
 
 import argparse
 import os
+import re
 import subprocess
 import tempfile
 import time
 import webbrowser
+from urllib.parse import urlsplit, urlunsplit
 
 from listing_parsers import (
     DATA_DIR,
@@ -31,6 +33,7 @@ def crawl_interactive(args):
     if args.platform in ("贝壳", "链家"):
         code = resolve_city_code(args.city)
         source = "贝壳找房" if args.platform == "贝壳" else "链家"
+        current_page = None
 
         if args.current_chrome:
             print(f"\n🔍 {args.platform} - 读取当前 Chrome 标签页")
@@ -94,6 +97,8 @@ def crawl_interactive(args):
                 print(f"   第 {index}/{page_count} 页解析: {len(page_listings)} 条")
             listings.extend(page_listings)
         _preview_and_save(listings, args.save)
+        if args.current_chrome and current_page:
+            _prompt_next_page(current_page["url"], args)
         return
 
     url = _fallback_url(args)
@@ -161,6 +166,85 @@ def _run_osascript(script):
 
 def _applescript_string(value):
     return str(value).replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _prompt_next_page(current_url, args):
+    next_url = _build_next_page_url(current_url)
+    if not next_url:
+        print("\nℹ️ 当前页不是可推断下一页的二手房列表页；不提示翻页。")
+        return
+
+    command = _current_chrome_command(args)
+    print("\n➡️ 当前页处理完了，可以在 Chrome 里手动点下一页。")
+    print(f"   下一页稳定显示列表后，重复执行: {command}")
+    if not args.open_next:
+        print("   也可以加 --open-next 让脚本只尝试打开下一页一次；如果触发验证，再由人处理。")
+        return
+
+    print(f"\n➡️ 尝试打开下一页: {next_url}")
+    subprocess.run(["open", "-a", args.chrome_app, next_url], check=False)
+    time.sleep(max(0.5, args.next_wait_seconds))
+    try:
+        active_url = _run_osascript(f'tell application "{_applescript_string(args.chrome_app)}" to get URL of active tab of front window')
+        active_title = _run_osascript(f'tell application "{_applescript_string(args.chrome_app)}" to get title of active tab of front window')
+    except Exception as e:
+        print(f"   ⚠️ 已打开下一页，但无法读取 Chrome 状态: {e}")
+        print(f"   页面稳定后，重复执行: {command}")
+        return
+
+    print(f"   当前 URL: {active_url}")
+    print(f"   当前标题: {active_title}")
+    if _looks_like_captcha(active_url, active_title):
+        print("   ⚠️ 已触发验证。请在 Chrome 里完成验证；页面回到列表后再执行上面的读取命令。")
+    else:
+        print("   ✅ 下一页看起来已打开。确认是列表页后，执行上面的读取命令。")
+
+
+def _current_chrome_command(args):
+    parts = [
+        "python3 scripts/crawl_interactive.py",
+        "--platform",
+        args.platform,
+        "--city",
+        args.city,
+    ]
+    if args.budget_min is not None:
+        parts.extend(["--budget-min", f"{args.budget_min:g}"])
+    if args.budget_max is not None:
+        parts.extend(["--budget-max", f"{args.budget_max:g}"])
+    parts.append("--current-chrome")
+    if args.save:
+        parts.append("--save")
+    return " ".join(parts)
+
+
+def _looks_like_captcha(url, title):
+    return "hip.ke.com/captcha" in (url or "") or (title or "").strip().upper() == "CAPTCHA"
+
+
+def _build_next_page_url(url):
+    parsed = urlsplit(url)
+    segments = [segment for segment in parsed.path.split("/") if segment]
+    if "ershoufang" not in segments:
+        return ""
+
+    token_pattern = re.compile(r"(^pg\d+|(?:bp|ep|p|su|sf|co|tt|mw|ty|a|l|r|f|lc|bt)\d+)")
+    if not segments:
+        return ""
+
+    last = segments[-1]
+    if token_pattern.search(last):
+        page_match = re.match(r"pg(\d+)", last)
+        if page_match:
+            next_page = int(page_match.group(1)) + 1
+            segments[-1] = re.sub(r"^pg\d+", f"pg{next_page}", last)
+        else:
+            segments[-1] = f"pg2{last}"
+    else:
+        segments.append("pg2")
+
+    new_path = "/" + "/".join(segments) + "/"
+    return urlunsplit((parsed.scheme, parsed.netloc, new_path, parsed.query, parsed.fragment))
 
 
 def _filter_listings_by_args(listings, args, ordinary_residence=False):
@@ -284,6 +368,8 @@ if __name__ == "__main__":
     parser.add_argument("--html", help="直接解析已保存的列表页 HTML")
     parser.add_argument("--current-chrome", action="store_true", help="读取当前 Google Chrome 标签页；适合手动筛选/翻页/过验证后导入")
     parser.add_argument("--chrome-app", default="Google Chrome", help="--current-chrome 使用的浏览器应用名，默认 Google Chrome")
+    parser.add_argument("--open-next", action="store_true", help="--current-chrome 读取后尝试打开下一页一次；触发验证时交给人处理")
+    parser.add_argument("--next-wait-seconds", type=float, default=2.0, help="--open-next 打开下一页后等待秒数，默认2")
     parser.add_argument("--profile-dir", help="Playwright 浏览器用户数据目录，默认 data/browser-profile")
     parser.add_argument("--keep-browser", action="store_true", help="解析后不关闭 Playwright 浏览器")
     args = parser.parse_args()
